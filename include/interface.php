@@ -38,7 +38,7 @@ class CSR_WooCommerce_Interface {
      * Test API connection
      */
     public function test_connection() {
-        $response = $this->make_request( 'system_status' );
+        $response = $this->make_request_with_params( 'system_status' );
         
         if ( is_wp_error( $response ) ) {
             return array(
@@ -92,25 +92,31 @@ class CSR_WooCommerce_Interface {
      * Get overview data
      */
     private function get_overview_data( $start_date = null, $end_date = null ) {
-        $params = $this->build_date_params( $start_date, $end_date );
-        
         // Get sales report
-        $sales_report = $this->make_request( 'reports/sales',  $start_date, $end_date  );
+        $sales_report = $this->make_request( 'reports/sales', $start_date, $end_date );
         if ( is_wp_error( $sales_report ) ) {
             throw new Exception( $sales_report->get_error_message() );
         }
         
-        // // Get orders
-        // $orders = $this->make_request( 'orders', array_merge( $params, array( 'per_page' => 100 ) ) );
-        // if ( is_wp_error( $orders ) ) {
-        //     throw new Exception( $orders->get_error_message() );
-        // }
+        // Get orders with date filtering
+        $order_params = array( 'per_page' => 100 );
+        if ( $start_date ) {
+            $order_params['after'] = date( 'Y-m-d\TH:i:s', strtotime( $start_date ) );
+        }
+        if ( $end_date ) {
+            $order_params['before'] = date( 'Y-m-d\TH:i:s', strtotime( $end_date . ' +1 day' ) );
+        }
         
-        // // Get top selling products
-        // $top_products = $this->make_request( 'reports/top_sellers', $params );
-        // if ( is_wp_error( $top_products ) ) {
-        //     throw new Exception( $top_products->get_error_message() );
-        // }
+        $orders = $this->make_request_with_params( 'orders', $order_params );
+        if ( is_wp_error( $orders ) ) {
+            throw new Exception( $orders->get_error_message() );
+        }
+        
+        // Get top selling products
+        $top_products = $this->make_request( 'reports/top_sellers', $start_date, $end_date );
+        if ( is_wp_error( $top_products ) ) {
+            throw new Exception( $top_products->get_error_message() );
+        }
         
         return array(
             'sales_report' => $sales_report,
@@ -298,47 +304,63 @@ class CSR_WooCommerce_Interface {
      * Make API request to WooCommerce
      */
     private function make_request( $endpoint, $start_date = null, $end_date = null ) {
+        try {
+            // Build query parameters for date filtering
+            $query = array();
+            if ( $start_date ) {
+                $query['date_min'] = $start_date;
+            }
+            if ( $end_date ) {
+                $query['date_max'] = $end_date;
+            }
 
-        $query = [
-            'date_min' => $start_date, 
-            'date_max' => $end_date
-        ];
-        $woocommerce = new Client(
-            $this->store_url,
-            $this->consumer_key,
-            $this->consumer_secret,
-            [
-                'version' => $this->api_version,
-            ]
-        );
+            // Initialize WooCommerce client
+            $woocommerce = new Client(
+                $this->store_url,
+                $this->consumer_key,
+                $this->consumer_secret,
+                [
+                    'version' => $this->api_version,
+                ]
+            );
+            
+            // Make the API request
+            $response = $woocommerce->get( $endpoint, $query );
 
-        $response = $woocommerce->get('reports/sales', $query);
-
-        set_transient('debug', $query , 30);
-
-        // $response = wp_remote_get( $url, array(
-        //     'headers' => array(
-        //         'Authorization' => 'Basic ' . base64_encode( $this->consumer_key . ':' . $this->consumer_secret )
-        //     ),
-        //     'timeout' => 30
-        // ));
-        
-        if ( is_wp_error( $response ) ) {
+            // The WooCommerce client returns the data directly, not a WP response object
             return $response;
+            
+        } catch ( Exception $e ) {
+            // Convert exceptions to WP_Error for consistency
+            return new WP_Error( 'api_error', $e->getMessage() );
         }
-        
-        // $response_code = wp_remote_retrieve_response_code( $response );
-        // $body = wp_remote_retrieve_body( $response );
-        
-        // if ( $response_code !== 200 ) {
-        //     return new WP_Error( 'api_error', sprintf( 
-        //         __( 'API request failed with status %d: %s', 'catering-sales-report' ), 
-        //         $response_code, 
-        //         $body 
-        //     ));
-        // }
-        
-        return json_decode( $body, true );
+    }
+    
+    /**
+     * Make API request with custom parameters
+     */
+    private function make_request_with_params( $endpoint, $params = array() ) {
+        try {
+            // Initialize WooCommerce client
+            $woocommerce = new Client(
+                $this->store_url,
+                $this->consumer_key,
+                $this->consumer_secret,
+                [
+                    'version' => $this->api_version,
+                ]
+            );
+
+            // Make the API request
+            $response = $woocommerce->get( $endpoint, $params );
+            
+            // The WooCommerce client returns the data directly, not a WP response object
+            return $response;
+            
+        } catch ( Exception $e ) {
+            // Convert exceptions to WP_Error for consistency
+            return new WP_Error( 'api_error', $e->getMessage() );
+        }
     }
     
     /**
@@ -362,15 +384,16 @@ class CSR_WooCommerce_Interface {
      * Calculate overview summary from sales data
      */
     private function calculate_overview_summary( $sales_report, $orders ) {
+        
         $total_revenue = 0;
         $total_orders = count( $orders );
         $total_items = 0;
-        
+        set_transient( 'debug', $orders, 30 );
         foreach ( $orders as $order ) {
-            $total_revenue += floatval( $order['total'] );
-            $total_items += count( $order['line_items'] );
+            $total_revenue += floatval( $order->total );
+            $total_items += count( $order->line_items );
         }
-        
+
         $average_order_value = $total_orders > 0 ? $total_revenue / $total_orders : 0;
         
         return array(
@@ -388,7 +411,7 @@ class CSR_WooCommerce_Interface {
         $daily_sales = array();
         
         foreach ( $orders as $order ) {
-            $date = date( 'Y-m-d', strtotime( $order['date_created'] ) );
+            $date = date( 'Y-m-d', strtotime( $order->date_created ) );
             
             if ( !isset( $daily_sales[$date] ) ) {
                 $daily_sales[$date] = array(
@@ -398,7 +421,7 @@ class CSR_WooCommerce_Interface {
                 );
             }
             
-            $daily_sales[$date]['sales'] += floatval( $order['total'] );
+            $daily_sales[$date]['sales'] += floatval( $order->total );
             $daily_sales[$date]['orders']++;
         }
         
@@ -420,7 +443,7 @@ class CSR_WooCommerce_Interface {
         $daily_orders = array();
         
         foreach ( $orders as $order ) {
-            $date = date( 'Y-m-d', strtotime( $order['date_created'] ) );
+            $date = date( 'Y-m-d', strtotime( $order->date_created ) );
             
             if ( !isset( $daily_orders[$date] ) ) {
                 $daily_orders[$date] = 0;
@@ -485,7 +508,7 @@ class CSR_WooCommerce_Interface {
         $country_sales = array();
         
         foreach ( $orders as $order ) {
-            $country = $order['billing']['country'] ?? 'Unknown';
+            $country = $order->billing->country ?? 'Unknown';
             
             if ( !isset( $country_sales[$country] ) ) {
                 $country_sales[$country] = array(
@@ -495,7 +518,7 @@ class CSR_WooCommerce_Interface {
                 );
             }
             
-            $country_sales[$country]['sales'] += floatval( $order['total'] );
+            $country_sales[$country]['sales'] += floatval( $order->total );
             $country_sales[$country]['orders']++;
         }
         
@@ -544,11 +567,11 @@ class CSR_WooCommerce_Interface {
         $guest_orders = 0;
         
         foreach ( $orders as $order ) {
-            if ( $order['customer_id'] > 0 ) {
-                $member_sales += floatval( $order['total'] );
+            if ( $order->customer_id > 0 ) {
+                $member_sales += floatval( $order->total );
                 $member_orders++;
             } else {
-                $guest_sales += floatval( $order['total'] );
+                $guest_sales += floatval( $order->total );
                 $guest_orders++;
             }
         }
@@ -580,7 +603,7 @@ class CSR_WooCommerce_Interface {
         $payment_methods = array();
         
         foreach ( $orders as $order ) {
-            $method = $order['payment_method_title'] ?? 'Unknown';
+            $method = $order->payment_method_title ?? 'Unknown';
             
             if ( !isset( $payment_methods[$method] ) ) {
                 $payment_methods[$method] = array(
@@ -591,7 +614,7 @@ class CSR_WooCommerce_Interface {
             }
             
             $payment_methods[$method]['count']++;
-            $payment_methods[$method]['total'] += floatval( $order['total'] );
+            $payment_methods[$method]['total'] += floatval( $order->total );
         }
         
         return array_values( $payment_methods );
@@ -611,9 +634,9 @@ class CSR_WooCommerce_Interface {
         $coupon_usage = array();
         
         foreach ( $orders as $order ) {
-            if ( !empty( $order['coupon_lines'] ) ) {
-                foreach ( $order['coupon_lines'] as $coupon_line ) {
-                    $coupon_code = $coupon_line['code'];
+            if ( !empty( $order->coupon_lines ) ) {
+                foreach ( $order->coupon_lines as $coupon_line ) {
+                    $coupon_code = $coupon_line->code;
                     
                     if ( !isset( $coupon_usage[$coupon_code] ) ) {
                         $coupon_usage[$coupon_code] = array(
@@ -624,7 +647,7 @@ class CSR_WooCommerce_Interface {
                     }
                     
                     $coupon_usage[$coupon_code]['usage_count']++;
-                    $coupon_usage[$coupon_code]['total_discount'] += floatval( $coupon_line['discount'] );
+                    $coupon_usage[$coupon_code]['total_discount'] += floatval( $coupon_line->discount );
                 }
             }
         }

@@ -300,7 +300,10 @@ jQuery(document).ready(function($) {
     // Apply date range
     $('#csr-apply-date-range').on('click', function() {
         var preset = $('#csr-date-preset').val();
+        
+        // Get the current date range and assign to global variables
         getCurrentDateRange();
+        
         // Trigger report refresh with new date range
         if (typeof loadReportContent === 'function') {
             var currentReport = $('.csr-nav-item.active').data('report') || 'overview';
@@ -322,75 +325,133 @@ function getCurrentDateRange() {
     // Get current date range from the date picker
     var preset = jQuery('#csr-date-preset').val() || 'this_month';
     
-    if (preset === 'custom' ) {
-        startDate = jQuery('#csr-start-date').val();
-        endDate = jQuery('#csr-end-date').val();
+    if (preset === 'custom') {
+        var customStart = jQuery('#csr-start-date').val();
+        var customEnd = jQuery('#csr-end-date').val();
+        
+        // Only use custom dates if both are provided
+        if (customStart && customEnd) {
+            startDate = customStart;
+            endDate = customEnd;
+            return { start: startDate, end: endDate };
+        } else {
+            // If custom is selected but no dates provided, fall back to this_month
+            preset = 'this_month';
+        }
     }
     
     // Calculate date range based on preset
-    console.log( new Date() );
+    var today = new Date();
+    var start = new Date();
+    var end = new Date();
+    
     switch (preset) {
         case 'today':
-            startDate = new Date();
-            endDate = new Date();
+            start = new Date(today);
+            end = new Date(today);
             break;
+            
         case 'yesterday':
-            startDate = setDate( new Date() - 1);
-            endDate = setDate( new Date() - 1);
+            start = new Date(today);
+            start.setDate(start.getDate() - 1);
+            end = new Date(start);
             break;
+            
         case 'this_week':
-            startDate.setDate(startDate.getDate() - startDate.getDay());
+            // Calculate start of week (Monday-based week)
+            start = new Date(today);
+            var dayOfWeek = start.getDay(); // 0 = Sunday, 1 = Monday, etc.
+            var daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Make Monday the start
+            start.setDate(start.getDate() - daysToSubtract);
+            end = new Date(today);
             break;
+            
         case 'last_week':
-            startDate.setDate(startDate.getDate() - startDate.getDay() - 7);
-            endDate.setDate(endDate.getDate() - endDate.getDay() - 1);
+            // Calculate last week (Monday to Sunday)
+            start = new Date(today);
+            var dayOfWeek = start.getDay();
+            var daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+            start.setDate(start.getDate() - daysToSubtract - 7); // Start of last week
+            end = new Date(start);
+            end.setDate(end.getDate() + 6); // End of last week (Sunday)
             break;
+            
         case 'this_month':
-            start.setDate(1);
+            start = new Date(today.getFullYear(), today.getMonth(), 1); // First day of current month
+            end = new Date(today);
             break;
+            
         case 'last_month':
-            start.setMonth(start.getMonth() - 1);
-            start.setDate(1);
-            end.setDate(0); // Last day of previous month
+            start = new Date(today.getFullYear(), today.getMonth() - 1, 1); // First day of last month
+            end = new Date(today.getFullYear(), today.getMonth(), 0); // Last day of last month
             break;
+            
+        case 'this_quarter':
+            var quarterStartMonth = Math.floor(today.getMonth() / 3) * 3;
+            start = new Date(today.getFullYear(), quarterStartMonth, 1);
+            end = new Date(today);
+            break;
+            
+        case 'last_quarter':
+            var lastQuarterStartMonth = Math.floor(today.getMonth() / 3) * 3 - 3;
+            if (lastQuarterStartMonth < 0) {
+                lastQuarterStartMonth = 9;
+                start = new Date(today.getFullYear() - 1, lastQuarterStartMonth, 1);
+                end = new Date(today.getFullYear(), 0, 0); // Last day of December previous year
+            } else {
+                start = new Date(today.getFullYear(), lastQuarterStartMonth, 1);
+                end = new Date(today.getFullYear(), lastQuarterStartMonth + 3, 0); // Last day of quarter
+            }
+            break;
+            
         case 'this_year':
-            start.setMonth(0); // January
-            start.setDate(1);
+            start = new Date(today.getFullYear(), 0, 1); // January 1st of current year
+            end = new Date(today);
             break;
+            
         case 'last_year':
-            start.setFullYear(start.getFullYear() - 1);
-            start.setMonth(0); // January
-            start.setDate(1);
+            start = new Date(today.getFullYear() - 1, 0, 1); // January 1st of last year
+            end = new Date(today.getFullYear() - 1, 11, 31); // December 31st of last year
+            break;
+            
         default:
-            start.setDate(1); // Default to this month
+            // Default to this month
+            start = new Date(today.getFullYear(), today.getMonth(), 1);
+            end = new Date(today);
     }
     
-    return {
-        start: start.toISOString().split('T')[0],
-        end: end.toISOString().split('T')[0]
-    };
+    // Format dates as YYYY-MM-DD
+    startDate = start.getFullYear() + '-' + 
+                String(start.getMonth() + 1).padStart(2, '0') + '-' + 
+                String(start.getDate()).padStart(2, '0');
+                
+    endDate = end.getFullYear() + '-' + 
+              String(end.getMonth() + 1).padStart(2, '0') + '-' + 
+              String(end.getDate()).padStart(2, '0');
+
+    return { start: startDate, end: endDate };
 }
 
-function updateQuickStats(preset, startDate, endDate) {
-    jQuery.post(csr_ajax.ajax_url, {
-        action: 'csr_get_quick_stats',
-        preset: preset,
-        start_date: startDate,
-        end_date: endDate,
-        nonce: csr_ajax.nonce
-    })
-    .done(function(response) {
-        if (response.success) {
-            var stats = response.data;
-            jQuery('#csr-stat-today-sales').text(stats.today_sales || '--');
-            jQuery('#csr-stat-month-sales').text(stats.month_sales || '--');
-            jQuery('#csr-stat-total-orders').text(stats.total_orders || '--');
-            jQuery('#csr-stat-avg-order').text(stats.avg_order || '--');
-        }
-    })
-    .fail(function() {
-        // Keep showing placeholder values on error
-        console.log('Failed to load quick stats');
-    });
-}
+// function updateQuickStats(preset, startDate, endDate) {
+//     jQuery.post(csr_ajax.ajax_url, {
+//         action: 'csr_get_quick_stats',
+//         preset: preset,
+//         start_date: startDate,
+//         end_date: endDate,
+//         nonce: csr_ajax.nonce
+//     })
+//     .done(function(response) {
+//         if (response.success) {
+//             var stats = response.data;
+//             jQuery('#csr-stat-today-sales').text(stats.today_sales || '--');
+//             jQuery('#csr-stat-month-sales').text(stats.month_sales || '--');
+//             jQuery('#csr-stat-total-orders').text(stats.total_orders || '--');
+//             jQuery('#csr-stat-avg-order').text(stats.avg_order || '--');
+//         }
+//     })
+//     .fail(function() {
+//         // Keep showing placeholder values on error
+//         console.log('Failed to load quick stats');
+//     });
+// }
 </script>

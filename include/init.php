@@ -133,7 +133,7 @@ class CSR_Init {
         try {
             $api = new CSR_WooCommerce_Interface();
             $data = $api->get_report_data( $report_type, $start_date, $end_date );
-            
+
             wp_send_json_success( $data );
         } catch ( Exception $e ) {
             wp_send_json_error( array(

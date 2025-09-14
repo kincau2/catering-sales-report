@@ -333,7 +333,6 @@ jQuery(document).ready(function($) {
 
 function loadReportData(reportType) {
     var dateRange = getCurrentDateRange();
-    
     jQuery.post(csr_ajax.ajax_url, {
         action: 'csr_get_report_data',
         report_type: reportType,
@@ -342,6 +341,7 @@ function loadReportData(reportType) {
         nonce: csr_ajax.nonce
     })
     .done(function(response) {
+        console.log(response);
         if (response.success) {
             updateOverviewMetrics(response.data.summary);
             updateRecentOrders(response.data.recent_orders);
