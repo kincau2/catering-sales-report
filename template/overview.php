@@ -88,28 +88,6 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         letter-spacing: 0.5px;
     }
     
-    .csr-metric-change {
-        font-size: 12px;
-        padding: 4px 8px;
-        border-radius: 12px;
-        font-weight: 600;
-    }
-    
-    .csr-metric-change.positive {
-        background: #e8f5e8;
-        color: #46b450;
-    }
-    
-    .csr-metric-change.negative {
-        background: #fce4e4;
-        color: #dc3232;
-    }
-    
-    .csr-metric-change.neutral {
-        background: #f0f0f1;
-        color: #666;
-    }
-    
     .csr-charts-section {
         margin-bottom: 30px;
     }
@@ -259,28 +237,24 @@ if ( ! defined( 'ABSPATH' ) ) exit;
             <div class="csr-metric-icon dashicons dashicons-chart-line"></div>
             <div class="csr-metric-value" id="metric-total-revenue">--</div>
             <div class="csr-metric-label"><?php _e( 'Total Revenue', 'catering-sales-report' ); ?></div>
-            <div class="csr-metric-change neutral" id="metric-revenue-change">--</div>
         </div>
         
         <div class="csr-metric-card">
             <div class="csr-metric-icon dashicons dashicons-cart"></div>
             <div class="csr-metric-value" id="metric-total-orders">--</div>
             <div class="csr-metric-label"><?php _e( 'Total Orders', 'catering-sales-report' ); ?></div>
-            <div class="csr-metric-change neutral" id="metric-orders-change">--</div>
         </div>
         
         <div class="csr-metric-card">
             <div class="csr-metric-icon dashicons dashicons-money"></div>
             <div class="csr-metric-value" id="metric-avg-order">--</div>
             <div class="csr-metric-label"><?php _e( 'Average Order Value', 'catering-sales-report' ); ?></div>
-            <div class="csr-metric-change neutral" id="metric-avg-change">--</div>
         </div>
         
         <div class="csr-metric-card">
             <div class="csr-metric-icon dashicons dashicons-products"></div>
             <div class="csr-metric-value" id="metric-total-items">--</div>
             <div class="csr-metric-label"><?php _e( 'Items Sold', 'catering-sales-report' ); ?></div>
-            <div class="csr-metric-change neutral" id="metric-items-change">--</div>
         </div>
     </div>
 
@@ -290,11 +264,6 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         <div class="csr-chart-container">
             <div class="csr-chart-header">
                 <h3 class="csr-chart-title"><?php _e( 'Sales Trend', 'catering-sales-report' ); ?></h3>
-                <div class="csr-chart-filters">
-                    <button class="csr-chart-filter active" data-period="7days"><?php _e( '7 Days', 'catering-sales-report' ); ?></button>
-                    <button class="csr-chart-filter" data-period="30days"><?php _e( '30 Days', 'catering-sales-report' ); ?></button>
-                    <button class="csr-chart-filter" data-period="90days"><?php _e( '90 Days', 'catering-sales-report' ); ?></button>
-                </div>
             </div>
             <div class="csr-chart-canvas">
                 <canvas id="csr-sales-trend-chart"></canvas>
@@ -345,7 +314,7 @@ function loadReportData(reportType) {
         if (response.success) {
             updateOverviewMetrics(response.data.summary);
             updateRecentOrders(response.data.recent_orders);
-            updateSalesTrendChart('7days', response.data.sales_trend);
+            updateSalesTrendChart(response.data.sales_report);
             updateTopProductsChart(response.data.top_products);
         } else {
             showError(response.data.message || csr_ajax.strings.error);
@@ -427,31 +396,67 @@ function updateRecentOrders(orders) {
     $container.html(html);
 }
 
-function updateSalesTrendChart(period, data) {
+function updateSalesTrendChart(salesReports) {
     // Chart.js implementation for sales trend
     var ctx = document.getElementById('csr-sales-trend-chart');
     if (!ctx) return;
+    
+    console.log('Sales reports data:', salesReports);
     
     // Destroy existing chart if it exists
     if (window.salesTrendChart) {
         window.salesTrendChart.destroy();
     }
     
+    // Check if we have data
+    if (!salesReports || salesReports.length === 0) {
+        return;
+    }
+    
+    // Get the sales report data (should be the first item in array)
+    var salesReport = salesReports[0];
+    if (!salesReport || !salesReport.totals) {
+        console.log('No totals data found');
+        return;
+    }
+    
+    // Get current date range to determine if we should group by month
+    var dateRange;
+    try {
+        dateRange = getCurrentDateRange();
+    } catch (e) {
+        // Fallback if function not available
+        dateRange = {
+            start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            end: new Date().toISOString().split('T')[0]
+        };
+    }
+    
+    var startDate = new Date(dateRange.start);
+    var endDate = new Date(dateRange.end);
+    var daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+    
+    // If range is more than 90 days, group by month
+    var groupByMonth = daysDiff > 90;
+    
+    var chartData = processChartData(salesReport.totals, groupByMonth);
+    
     // Sample data structure - replace with actual data
-    var chartData = {
-        labels: data ? data.map(d => d.date) : [],
+    var chartDataConfig = {
+        labels: chartData.labels,
         datasets: [{
             label: '<?php _e( "Sales", "catering-sales-report" ); ?>',
-            data: data ? data.map(d => d.sales) : [],
+            data: chartData.values,
             borderColor: '#0073aa',
             backgroundColor: 'rgba(0, 115, 170, 0.1)',
-            tension: 0.4
+            tension: 0.4,
+            fill: true
         }]
     };
     
     window.salesTrendChart = new Chart(ctx, {
         type: 'line',
-        data: chartData,
+        data: chartDataConfig,
         options: {
             responsive: true,
             maintainAspectRatio: false,
@@ -472,6 +477,50 @@ function updateSalesTrendChart(period, data) {
             }
         }
     });
+}
+
+function processChartData(totals, groupByMonth) {
+    if (!totals) return { labels: [], values: [] };
+    
+    var labels = [];
+    var values = [];
+    var monthlyData = {};
+    
+    // Sort dates
+    var sortedDates = Object.keys(totals).sort();
+    
+    if (groupByMonth) {
+        // Group by month
+        sortedDates.forEach(function(date) {
+            var monthKey = date.substring(0, 7); // YYYY-MM format
+            
+            if (!monthlyData[monthKey]) {
+                monthlyData[monthKey] = {
+                    sales: 0,
+                    orders: 0
+                };
+            }
+            
+            monthlyData[monthKey].sales += parseFloat(totals[date].sales || 0);
+            monthlyData[monthKey].orders += parseInt(totals[date].orders || 0);
+        });
+        
+        // Convert monthly data to arrays
+        Object.keys(monthlyData).sort().forEach(function(monthKey) {
+            var date = new Date(monthKey + '-01');
+            labels.push(date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' }));
+            values.push(monthlyData[monthKey].sales);
+        });
+    } else {
+        // Use daily data
+        sortedDates.forEach(function(date) {
+            var dateObj = new Date(date);
+            labels.push(dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+            values.push(parseFloat(totals[date].sales || 0));
+        });
+    }
+    
+    return { labels: labels, values: values };
 }
 
 function updateTopProductsChart(products) {
@@ -517,7 +566,7 @@ function updateTopProductsChart(products) {
 function formatCurrency(amount) {
     return new Intl.NumberFormat('en-US', {
         style: 'currency',
-        currency: 'USD'
+        currency: 'HKD'
     }).format(amount);
 }
 

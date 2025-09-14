@@ -388,7 +388,6 @@ class CSR_WooCommerce_Interface {
         $total_revenue = 0;
         $total_orders = count( $orders );
         $total_items = 0;
-        set_transient( 'debug', $orders, 30 );
         foreach ( $orders as $order ) {
             $total_revenue += floatval( $order->total );
             $total_items += count( $order->line_items );

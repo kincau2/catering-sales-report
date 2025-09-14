@@ -223,7 +223,7 @@ $report_pages = isset( $report_pages ) ? $report_pages : CSR_Init::get_report_pa
     
     <select id="csr-date-preset">
         <?php foreach ( CSR_Init::get_date_range_options() as $key => $label ): ?>
-            <option value="<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $label ); ?></option>
+            <option value="<?php echo esc_attr( $key ); ?>" <?php selected( $key, 'this_month' ); ?>><?php echo esc_html( $label ); ?></option>
         <?php endforeach; ?>
     </select>
     
@@ -311,12 +311,12 @@ jQuery(document).ready(function($) {
         }
         
         // Update quick stats
-        updateQuickStats(preset, startDate, endDate);
+        // updateQuickStats(preset, startDate, endDate);
     });
     
     // Load initial quick stats
     <?php if ( $credentials_configured ): ?>
-        updateQuickStats('this_month');
+        // updateQuickStats('this_month');
     <?php endif; ?>
 });
 
