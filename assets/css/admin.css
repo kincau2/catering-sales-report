@@ -1,0 +1,154 @@
+/*
+ * Catering Sales Report - Admin Styles
+ * 
+ * @package CateringSalesReport
+ * @since 1.0.0
+ */
+
+/* Dashboard and common styles are included in the dashboard.php template */
+/* This file can contain additional global styles */
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    #csr-dashboard {
+        flex-direction: column;
+    }
+    
+    #csr-left-panel {
+        width: 100%;
+        height: auto;
+        max-height: 300px;
+    }
+    
+    .csr-metrics-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .csr-chart-header {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .csr-chart-filters {
+        justify-content: center;
+    }
+}
+
+/* Print styles */
+@media print {
+    #csr-close-dashboard,
+    #csr-left-panel {
+        display: none !important;
+    }
+    
+    #csr-main-content {
+        width: 100% !important;
+    }
+    
+    .csr-chart-container {
+        break-inside: avoid;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .csr-metric-card {
+        border-width: 2px;
+    }
+    
+    .csr-nav-item {
+        border-width: 2px;
+    }
+}
+
+/* Dark mode support (if WordPress implements it) */
+@media (prefers-color-scheme: dark) {
+    /* Future implementation for dark mode */
+}
+
+/* Animation utilities */
+.csr-fade-in {
+    animation: csrFadeIn 0.3s ease-in;
+}
+
+@keyframes csrFadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.csr-slide-in {
+    animation: csrSlideIn 0.3s ease-out;
+}
+
+@keyframes csrSlideIn {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+}
+
+/* Utility classes */
+.csr-text-center { text-align: center; }
+.csr-text-left { text-align: left; }
+.csr-text-right { text-align: right; }
+
+.csr-mt-10 { margin-top: 10px; }
+.csr-mt-20 { margin-top: 20px; }
+.csr-mb-10 { margin-bottom: 10px; }
+.csr-mb-20 { margin-bottom: 20px; }
+
+.csr-p-10 { padding: 10px; }
+.csr-p-20 { padding: 20px; }
+
+.csr-hidden { display: none; }
+.csr-visible { display: block; }
+
+/* Accessibility improvements */
+.csr-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Focus states */
+.csr-nav-item:focus,
+.csr-chart-filter:focus,
+button:focus {
+    outline: 2px solid #005fcc;
+    outline-offset: 2px;
+}
+
+/* Loading states */
+.csr-skeleton {
+    background: linear-gradient(90deg, #f0f0f1 25%, #e0e0e1 50%, #f0f0f1 75%);
+    background-size: 200% 100%;
+    animation: csrSkeleton 1.5s infinite;
+}
+
+@keyframes csrSkeleton {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Success and error states */
+.csr-success {
+    color: #46b450;
+    background: #e8f5e8;
+    border-color: #46b450;
+}
+
+.csr-warning {
+    color: #8a6914;
+    background: #fff8e1;
+    border-color: #ffb900;
+}
+
+.csr-info {
+    color: #0073aa;
+    background: #e5f5fa;
+    border-color: #00a0d2;
+}
