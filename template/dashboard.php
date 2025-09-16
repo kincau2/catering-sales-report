@@ -29,12 +29,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
     font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif;
 }
 
-#csr-left-panel {
-    width: 280px;
-    background: #23282d;
-    color: #fff;
-    overflow-y: auto;
-    flex-shrink: 0;
+#csr-content-area > div {
+    min-height: calc(100vh - 60px);
 }
 
 #csr-main-content {
@@ -124,7 +120,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
     <div id="csr-dashboard">
         <!-- Close button -->
         <button id="csr-close-dashboard" onclick="closeDashboard()">
-            <?php _e( '← Back to WordPress Admin', 'catering-sales-report' ); ?>
+            <?php _e( '← 回到 WordPress 後台', 'catering-sales-report' ); ?>
         </button>
         
         <!-- Left Panel -->
@@ -203,6 +199,7 @@ function loadReportContent(reportType) {
         nonce: csr_ajax.nonce
     })
     .done(function(response) {
+        
         if (response.success) {
             $contentArea.html(response.data.html);
             

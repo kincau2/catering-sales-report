@@ -26,6 +26,9 @@ class CSR_Init {
         
         // Load text domain
         self::load_textdomain();
+        
+        // Create database tables
+        self::create_database_tables();
     }
     
     /**
@@ -47,6 +50,11 @@ class CSR_Init {
         add_action( 'wp_ajax_csr_get_report_content', array( __CLASS__, 'ajax_get_report_content' ) );
         add_action( 'wp_ajax_csr_get_quick_stats', array( __CLASS__, 'ajax_get_quick_stats' ) );
         add_action( 'wp_ajax_csr_test_connection', array( __CLASS__, 'ajax_test_connection' ) );
+        
+        // Frontend hooks for page view tracking
+        add_action( 'wp_enqueue_scripts', array( __CLASS__, 'frontend_enqueue_scripts' ) );
+        add_action( 'wp_ajax_csr_track_page_view', array( __CLASS__, 'ajax_track_page_view' ) );
+        add_action( 'wp_ajax_nopriv_csr_track_page_view', array( __CLASS__, 'ajax_track_page_view' ) );
     }
     
     /**
@@ -210,7 +218,7 @@ class CSR_Init {
             ob_start();
             include $template_path;
             $html = ob_get_clean();
-            
+            set_transient( 'debug' ,$html,20);
             wp_send_json_success( array(
                 'html' => $html,
                 'report_type' => $report_type
@@ -301,18 +309,6 @@ class CSR_Init {
             case 'last_month':
                 $start->modify( 'first day of last month' );
                 $end->modify( 'last day of last month' );
-                break;
-            case 'this_quarter':
-                $month = (int) $start->format( 'n' );
-                $quarter_start_month = ( ceil( $month / 3 ) - 1 ) * 3 + 1;
-                $start->setDate( $start->format( 'Y' ), $quarter_start_month, 1 );
-                break;
-            case 'last_quarter':
-                $month = (int) $start->format( 'n' );
-                $quarter_start_month = ( ceil( $month / 3 ) - 1 ) * 3 + 1;
-                $start->setDate( $start->format( 'Y' ), $quarter_start_month - 3, 1 );
-                $end->setDate( $end->format( 'Y' ), $quarter_start_month - 1, 1 );
-                $end->modify( 'last day of this month' );
                 break;
             case 'this_year':
                 $start->modify( 'first day of january this year' );
@@ -416,17 +412,179 @@ class CSR_Init {
      */
     public static function get_date_range_options() {
         return array(
-            'today' => __( 'Today', 'catering-sales-report' ),
-            'yesterday' => __( 'Yesterday', 'catering-sales-report' ),
-            'this_week' => __( 'This Week', 'catering-sales-report' ),
-            'last_week' => __( 'Last Week', 'catering-sales-report' ),
-            'this_month' => __( 'This Month', 'catering-sales-report' ),
-            'last_month' => __( 'Last Month', 'catering-sales-report' ),
-            'this_quarter' => __( 'This Quarter', 'catering-sales-report' ),
-            'last_quarter' => __( 'Last Quarter', 'catering-sales-report' ),
-            'this_year' => __( 'This Year', 'catering-sales-report' ),
-            'last_year' => __( 'Last Year', 'catering-sales-report' ),
-            'custom' => __( 'Custom Range', 'catering-sales-report' )
+            'today' => __( '今天', 'catering-sales-report' ),
+            'yesterday' => __( '昨天', 'catering-sales-report' ),
+            'this_week' => __( '本週', 'catering-sales-report' ),
+            'last_week' => __( '上週', 'catering-sales-report' ),
+            'this_month' => __( '本月', 'catering-sales-report' ),
+            'last_month' => __( '上月', 'catering-sales-report' ),
+            'this_year' => __( '本年', 'catering-sales-report' ),
+            'last_year' => __( '去年', 'catering-sales-report' ),
+            'custom' => __( '自訂範圍', 'catering-sales-report' )
         );
+    }
+    
+    /**
+     * Create database tables for tracking
+     */
+    public static function create_database_tables() {
+        global $wpdb;
+        
+        $table_name = $wpdb->prefix . 'csr_product_views';
+        
+        $charset_collate = $wpdb->get_charset_collate();
+        
+        $sql = "CREATE TABLE $table_name (
+            id mediumint(9) NOT NULL AUTO_INCREMENT,
+            product_id bigint(20) NOT NULL,
+            view_count int(11) NOT NULL DEFAULT 1,
+            view_date date NOT NULL,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY product_date (product_id, view_date),
+            KEY view_date (view_date)
+        ) $charset_collate;";
+        
+        require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
+        dbDelta( $sql );
+    }
+    
+    /**
+     * Enqueue frontend scripts for page view tracking
+     */
+    public static function frontend_enqueue_scripts() {
+        // Only load on single product pages
+        if ( ! is_product() ) {
+            return;
+        }
+        
+        // Enqueue script for tracking
+        wp_enqueue_script( 
+            'csr-page-tracking', 
+            CSR_PLUGIN_URL . 'assets/js/page-tracking.js', 
+            array( 'jquery' ), 
+            CSR_VERSION, 
+            true 
+        );
+        
+        // Localize for AJAX
+        wp_localize_script( 'csr-page-tracking', 'csr_tracking', array(
+            'ajax_url' => admin_url( 'admin-ajax.php' ),
+            'nonce' => wp_create_nonce( 'csr_tracking_nonce' ),
+            'product_id' => get_the_ID()
+        ));
+    }
+    
+    /**
+     * AJAX handler for tracking page views
+     */
+    public static function ajax_track_page_view() {
+        // Verify nonce
+        if ( ! wp_verify_nonce( $_POST['nonce'], 'csr_tracking_nonce' ) ) {
+            wp_die( 'Security check failed' );
+        }
+        
+        $product_id = intval( $_POST['product_id'] );
+        
+        if ( ! $product_id ) {
+            wp_send_json_error( 'Invalid product ID' );
+        }
+        
+        // Check if product exists and is valid WooCommerce product
+        $product = wc_get_product( $product_id );
+        if ( ! $product ) {
+            wp_send_json_error( 'Product not found' );
+        }
+        
+        // Check cookie to avoid duplicate views
+        $cookie_name = 'csr_viewed_' . $product_id;
+        $today = date( 'Y-m-d' );
+        
+        if ( ! isset( $_COOKIE[$cookie_name] ) || $_COOKIE[$cookie_name] !== $today ) {
+            // Track the view
+            self::track_product_view( $product_id );
+            
+            // Set cookie for 24 hours
+            setcookie( $cookie_name, $today, time() + DAY_IN_SECONDS, '/' );
+            
+            wp_send_json_success( 'View tracked' );
+        } else {
+            wp_send_json_success( 'Already tracked today' );
+        }
+    }
+    
+    /**
+     * Track a product page view
+     */
+    private static function track_product_view( $product_id ) {
+        global $wpdb;
+        
+        $table_name = $wpdb->prefix . 'csr_product_views';
+        $today = date( 'Y-m-d' );
+        
+        // Check if we already have a record for this product today
+        $existing = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM $table_name WHERE product_id = %d AND view_date = %s",
+            $product_id,
+            $today
+        ));
+        
+        if ( $existing ) {
+            // Increment existing record
+            $wpdb->update(
+                $table_name,
+                array( 'view_count' => $existing->view_count + 1 ),
+                array( 'id' => $existing->id ),
+                array( '%d' ),
+                array( '%d' )
+            );
+        } else {
+            // Insert new record
+            $wpdb->insert(
+                $table_name,
+                array(
+                    'product_id' => $product_id,
+                    'view_count' => 1,
+                    'view_date' => $today
+                ),
+                array( '%d', '%d', '%s' )
+            );
+        }
+    }
+    
+    /**
+     * Get top viewed products for a date range
+     */
+    public static function get_top_viewed_products( $start_date, $end_date, $limit = 10 ) {
+        global $wpdb;
+        
+        $table_name = $wpdb->prefix . 'csr_product_views';
+        
+        $results = $wpdb->get_results( $wpdb->prepare(
+            "SELECT product_id, SUM(view_count) as total_views 
+             FROM $table_name 
+             WHERE view_date BETWEEN %s AND %s 
+             GROUP BY product_id 
+             ORDER BY total_views DESC 
+             LIMIT %d",
+            $start_date,
+            $end_date,
+            $limit
+        ));
+        
+        $products = array();
+        foreach ( $results as $result ) {
+            $product = wc_get_product( $result->product_id );
+            if ( $product ) {
+                $products[] = array(
+                    'id' => $result->product_id,
+                    'name' => $product->get_name(),
+                    'views' => intval( $result->total_views ),
+                    'url' => $product->get_permalink()
+                );
+            }
+        }
+        
+        return $products;
     }
 }

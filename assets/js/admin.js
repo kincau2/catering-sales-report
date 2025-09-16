@@ -30,8 +30,8 @@
         // Initialize keyboard navigation
         initializeKeyboardNavigation();
         
-        // Initialize auto-refresh
-        initializeAutoRefresh();
+        // Initialize auto-refresh - disabled to prevent unexpected widget reloads
+        // initializeAutoRefresh();
     }
     
     /**
@@ -135,12 +135,15 @@
      * Initialize auto-refresh functionality
      */
     function initializeAutoRefresh() {
-        // Auto-refresh data every 5 minutes
+        // Auto-refresh disabled to prevent unexpected widget reloads
+        // Uncomment the following code if you want to enable auto-refresh:
+        /*
         setInterval(function() {
             if ($('#csr-dashboard-overlay').is(':visible')) {
                 refreshCurrentReport();
             }
         }, 300000); // 5 minutes
+        */
     }
     
     /**

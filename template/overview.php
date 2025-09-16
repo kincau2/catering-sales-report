@@ -12,17 +12,21 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 <div class="csr-overview-container">
     <style>
-    /* Overview specific styles */
+    /* Overview specific styles - Following design draft color scheme */
     .csr-overview-container {
         padding: 30px;
-        max-width: 1200px;
+        /* max-width: 1400px; */
         margin: 0 auto;
+        background: #f5f5f5;
     }
     
     .csr-overview-header {
         margin-bottom: 30px;
         border-bottom: 1px solid #e1e1e1;
         padding-bottom: 20px;
+        background: #fff;
+        padding: 20px;
+        border-radius: 6px;
     }
     
     .csr-overview-header h1 {
@@ -38,76 +42,39 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         margin: 0;
     }
     
-    .csr-metrics-grid {
+    /* Main dashboard grid */
+    .csr-dashboard-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        grid-template-columns: 2fr 1fr;
         gap: 20px;
         margin-bottom: 30px;
     }
     
-    .csr-metric-card {
-        background: #fff;
-        border: 1px solid #e1e1e1;
-        border-radius: 6px;
-        padding: 20px;
-        text-align: center;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        transition: box-shadow 0.2s ease;
-    }
-    
-    .csr-metric-card:hover {
-        box-shadow: 0 3px 8px rgba(0,0,0,0.15);
-    }
-    
-    .csr-metric-icon {
-        width: 48px;
-        height: 48px;
-        margin: 0 auto 15px;
-        background: #0073aa;
-        border-radius: 50%;
+    .csr-left-column {
         display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #fff;
-        font-size: 24px;
+        flex-direction: column;
+        gap: 20px;
     }
     
-    .csr-metric-value {
-        font-size: 32px;
-        font-weight: 700;
-        color: #23282d;
-        margin: 0 0 5px 0;
-        line-height: 1;
+    .csr-right-column {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
     }
     
-    .csr-metric-label {
-        font-size: 14px;
-        color: #666;
-        margin: 0 0 10px 0;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    
-    .csr-charts-section {
-        margin-bottom: 30px;
-    }
-    
-    .csr-chart-container {
+    /* Sales trend chart - large widget */
+    .csr-main-chart {
         background: #fff;
-        border: 1px solid #e1e1e1;
         border-radius: 6px;
         padding: 20px;
-        margin-bottom: 20px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        height: 400px;
     }
     
     .csr-chart-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
         margin-bottom: 20px;
-        padding-bottom: 15px;
         border-bottom: 1px solid #f0f0f1;
+        padding-bottom: 15px;
     }
     
     .csr-chart-title {
@@ -117,39 +84,103 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         margin: 0;
     }
     
-    .csr-chart-filters {
-        display: flex;
-        gap: 10px;
-    }
-    
-    .csr-chart-filter {
-        padding: 6px 12px;
-        border: 1px solid #ddd;
-        background: #fff;
-        border-radius: 3px;
-        font-size: 13px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-    
-    .csr-chart-filter:hover,
-    .csr-chart-filter.active {
-        background: #0073aa;
-        color: #fff;
-        border-color: #0073aa;
-    }
-    
     .csr-chart-canvas {
-        height: 400px;
+        height: 320px;
         position: relative;
     }
     
-    .csr-recent-orders {
-        background: #fff;
-        border: 1px solid #e1e1e1;
+    /* Metrics grid - orange themed like design */
+    .csr-metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+    
+    .csr-metric-card {
+        background: #D2691E; /* Orange theme from design */
+        color: #fff;
         border-radius: 6px;
         padding: 20px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        text-align: left;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        position: relative;
+        min-height: 120px;
+    }
+    
+    .csr-metric-card.secondary {
+        background: #FF8C00; /* Darker orange variant */
+    }
+    
+    .csr-metric-card.tertiary {
+        background: #CD853F; /* Brown-orange variant */
+    }
+    
+    .csr-metric-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: #fff;
+        margin: 0 0 5px 0;
+        line-height: 1.1;
+    }
+    
+    .csr-metric-label {
+        font-size: 14px;
+        color: rgba(255,255,255,0.9);
+        margin: 0 0 5px 0;
+        line-height: 1.3;
+    }
+    
+    .csr-metric-comparison {
+        font-size: 12px;
+        color: rgba(255,255,255,0.8);
+        margin-top: 10px;
+    }
+    
+    .csr-metric-change {
+        font-weight: 600;
+        color: rgba(255,255,255,0.95);
+    }
+    
+    /* Secondary widgets */
+    .csr-secondary-widgets {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .csr-widget {
+        background: #fff;
+        border-radius: 6px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .csr-widget-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #23282d;
+        margin: 0 0 15px 0;
+        text-align: center;
+    }
+    
+    .csr-widget-content {
+        text-align: center;
+    }
+    
+    /* Top products pie chart - colorful design */
+    .csr-top-products-chart {
+        height: 300px;
+        position: relative;
+    }
+    
+    /* Recent orders table */
+    .csr-recent-orders {
+        background: #fff;
+        border-radius: 6px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        grid-column: span 2;
     }
     
     .csr-recent-orders h3 {
@@ -204,7 +235,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         color: #856404;
     }
     
-    .csr-order-status.pending {
+    .csr-order-status.pending,
+    .csr-order-status.on-hold {
         background: #f0f0f1;
         color: #666;
     }
@@ -224,69 +256,218 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         border-radius: 3px;
         margin: 20px 0;
     }
+    
+    /* Regional and stats lists */
+    .csr-stat-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+    
+    .csr-stat-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #f0f0f1;
+        font-size: 14px;
+    }
+    
+    .csr-stat-item:last-child {
+        border-bottom: none;
+    }
+    
+    .csr-stat-name {
+        color: #23282d;
+        font-weight: 500;
+    }
+    
+    .csr-stat-value {
+        color: #D2691E;
+        font-weight: 600;
+    }
+    
+    /* Loading spinner animation */
+    .csr-loading-spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #D2691E;
+        border-radius: 50%;
+        animation: csr-spin 1s linear infinite;
+        margin: 0 auto;
+    }
+    
+    .csr-loading-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 60px;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .csr-loading-text {
+        color: #666;
+        font-size: 14px;
+        font-style: italic;
+    }
+    
+    @keyframes csr-spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    /* Widget loading states */
+    .csr-widget.loading {
+        position: relative;
+    }
+    
+    .csr-metric-card.loading .csr-metric-value,
+    .csr-metric-card.loading .csr-metric-comparison {
+        opacity: 0.3;
+    }
+    
+    /* Chart loading overlay */
+    .csr-chart-loading {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255,255,255,0.8);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 10;
+    }
+    
+    /* Responsive design */
+    @media (max-width: 1200px) {
+        .csr-dashboard-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .csr-secondary-widgets {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .csr-metrics-grid {
+            grid-template-columns: 1fr;
+        }
+    }
     </style>
 
     <div class="csr-overview-header">
-        <h1><?php _e( 'Sales Overview', 'catering-sales-report' ); ?></h1>
-        <p class="csr-overview-subtitle"><?php _e( 'Key metrics and performance indicators for your WooCommerce store', 'catering-sales-report' ); ?></p>
+        <h1><?php _e( '銷售總覽', 'catering-sales-report' ); ?></h1>
     </div>
 
-    <!-- Key Metrics -->
-    <div class="csr-metrics-grid" id="csr-overview-metrics">
-        <div class="csr-metric-card">
-            <div class="csr-metric-icon dashicons dashicons-chart-line"></div>
-            <div class="csr-metric-value" id="metric-total-revenue">--</div>
-            <div class="csr-metric-label"><?php _e( 'Total Revenue', 'catering-sales-report' ); ?></div>
+    <!-- Main Dashboard Grid -->
+    <div class="csr-dashboard-grid">
+        <!-- Left Column: Sales Trend Chart -->
+        <div class="csr-left-column">
+            <div class="csr-main-chart">
+                <div class="csr-chart-header">
+                    <h3 class="csr-chart-title"><?php _e( '銷售趨勢', 'catering-sales-report' ); ?></h3>
+                </div>
+                <div class="csr-chart-canvas">
+                    <canvas id="csr-sales-trend-chart"></canvas>
+                </div>
+            </div>
         </div>
-        
-        <div class="csr-metric-card">
-            <div class="csr-metric-icon dashicons dashicons-cart"></div>
-            <div class="csr-metric-value" id="metric-total-orders">--</div>
-            <div class="csr-metric-label"><?php _e( 'Total Orders', 'catering-sales-report' ); ?></div>
-        </div>
-        
-        <div class="csr-metric-card">
-            <div class="csr-metric-icon dashicons dashicons-money"></div>
-            <div class="csr-metric-value" id="metric-avg-order">--</div>
-            <div class="csr-metric-label"><?php _e( 'Average Order Value', 'catering-sales-report' ); ?></div>
-        </div>
-        
-        <div class="csr-metric-card">
-            <div class="csr-metric-icon dashicons dashicons-products"></div>
-            <div class="csr-metric-value" id="metric-total-items">--</div>
-            <div class="csr-metric-label"><?php _e( 'Items Sold', 'catering-sales-report' ); ?></div>
+
+        <!-- Right Column: Key Metrics -->
+        <div class="csr-right-column">
+            <div class="csr-metrics-grid">
+
+                <!-- 總營業額 (keeping this as a summary) -->
+                <div class="csr-metric-card">
+                    <div class="csr-metric-label"><?php _e( '總營業額', 'catering-sales-report' ); ?></div>
+                    <div class="csr-metric-value" id="metric-total-revenue">HK$--</div>
+                    <div class="csr-metric-comparison">
+                        <div><?php _e( '總訂單', 'catering-sales-report' ); ?>: <span id="metric-total-orders">--</span></div>
+                        <div><?php _e( '平均訂單金額', 'catering-sales-report' ); ?>: <span id="metric-avg-order">HK$--</span></div>
+                    </div>
+                </div>
+
+                <!-- 本月銷售額 vs 上月銷售額 -->
+                <div class="csr-metric-card">
+                    <div class="csr-metric-label"><?php _e( '本月銷售額', 'catering-sales-report' ); ?></div>
+                    <div class="csr-metric-value" id="metric-current-month-sales">HK$--</div>
+                    <div class="csr-metric-comparison">
+                        <span><?php _e( '上月銷售額', 'catering-sales-report' ); ?>: </span>
+                        <span class="csr-metric-change" id="metric-last-month-sales">HK$--</span>
+                    </div>
+                </div>
+
+                <!-- 過去30/60/90日平均銷售額 -->
+                <div class="csr-metric-card tertiary">
+                    <div class="csr-metric-label"><?php _e( '過去30日平均銷售額', 'catering-sales-report' ); ?></div>
+                    <div class="csr-metric-value" id="metric-avg-30days">HK$--</div>
+                    <div class="csr-metric-comparison">
+                        <div><?php _e( '60日平均', 'catering-sales-report' ); ?>: <span id="metric-avg-60days">HK$--</span></div>
+                        <div><?php _e( '90日平均', 'catering-sales-report' ); ?>: <span id="metric-avg-90days">HK$--</span></div>
+                    </div>
+                </div>
+
+                <!-- 本月新增顧客 vs 上月新增顧客 -->
+                <div class="csr-metric-card secondary">
+                    <div class="csr-metric-label"><?php _e( '本月新增顧客', 'catering-sales-report' ); ?></div>
+                    <div class="csr-metric-value" id="metric-current-month-customers">--</div>
+                    <div class="csr-metric-comparison">
+                        <span><?php _e( '上月新增顧客', 'catering-sales-report' ); ?>: </span>
+                        <span class="csr-metric-change" id="metric-last-month-customers">--</span>
+                    </div>
+                </div>
+
+            </div>
         </div>
     </div>
 
-    <!-- Charts Section -->
-    <div class="csr-charts-section">
-        <!-- Sales Trend Chart -->
-        <div class="csr-chart-container">
-            <div class="csr-chart-header">
-                <h3 class="csr-chart-title"><?php _e( 'Sales Trend', 'catering-sales-report' ); ?></h3>
-            </div>
-            <div class="csr-chart-canvas">
-                <canvas id="csr-sales-trend-chart"></canvas>
+    <!-- Secondary Widgets -->
+    <div class="csr-secondary-widgets">
+        <!-- 最高銷售地區 -->
+        <div class="csr-widget">
+            <h3 class="csr-widget-title"><?php _e( '最高銷售地區', 'catering-sales-report' ); ?></h3>
+            <div class="csr-widget-content">
+                <ul class="csr-stat-list" id="csr-top-regions">
+                    <!-- Loading state will be inserted here -->
+                </ul>
             </div>
         </div>
 
-        <!-- Top Products Chart -->
-        <div class="csr-chart-container">
-            <div class="csr-chart-header">
-                <h3 class="csr-chart-title"><?php _e( 'Top Selling Products', 'catering-sales-report' ); ?></h3>
-            </div>
-            <div class="csr-chart-canvas" style="height: 300px;">
-                <canvas id="csr-top-products-chart"></canvas>
+        <!-- 最高銷售產品 -->
+        <div class="csr-widget">
+            <h3 class="csr-widget-title"><?php _e( '最高銷售產品', 'catering-sales-report' ); ?></h3>
+            <div class="csr-widget-content">
+                <div class="csr-top-products-chart">
+                    <canvas id="csr-top-products-chart"></canvas>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Recent Orders -->
-    <div class="csr-recent-orders">
-        <h3><?php _e( 'Recent Orders', 'catering-sales-report' ); ?></h3>
-        <div id="csr-recent-orders-content">
-            <div class="csr-loading-placeholder">
-                <?php _e( 'Loading recent orders...', 'catering-sales-report' ); ?>
+    <!-- Page Views Widgets -->
+    <div class="csr-secondary-widgets">
+        <!-- 最高瀏覽次數 -->
+        <div class="csr-widget">
+            <h3 class="csr-widget-title"><?php _e( '最高瀏覽次數', 'catering-sales-report' ); ?></h3>
+            <div class="csr-widget-content">
+                <ul class="csr-stat-list" id="csr-top-viewed-products">
+                    <!-- Loading state will be inserted here -->
+                </ul>
+            </div>
+        </div>
+
+        <!-- 瀏覽次數趨勢 -->
+        <div class="csr-widget">
+            <h3 class="csr-widget-title"><?php _e( '瀏覽次數趨勢', 'catering-sales-report' ); ?></h3>
+            <div class="csr-widget-content">
+                <div class="csr-page-views-chart" style="height: 250px;">
+                    <canvas id="csr-page-views-chart"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -295,10 +476,46 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 <script>
 // Overview page JavaScript
 jQuery(document).ready(function($) {
+    // Initialize loading states for all widgets
+    initializeLoadingStates();
+    
     // Load overview data when page is ready
     loadReportData('overview');
     
 });
+
+function initializeLoadingStates() {
+    // Add loading states to all widgets
+    showLoadingState('#csr-top-regions');
+    showLoadingState('#csr-top-viewed-products');
+    
+    // Add loading overlay to charts
+    addChartLoadingOverlay('#csr-sales-trend-chart');
+    addChartLoadingOverlay('#csr-top-products-chart');
+    addChartLoadingOverlay('#csr-page-views-chart');
+    
+    // Add loading class to metric cards
+    jQuery('.csr-metric-card').addClass('loading');
+}
+
+function showLoadingState(selector) {
+    var loadingHtml = '<div class="csr-loading-container">' +
+                     '<div class="csr-loading-spinner"></div>' +
+                     '</div>';
+    jQuery(selector).html(loadingHtml);
+}
+
+function addChartLoadingOverlay(selector) {
+    var $container = jQuery(selector).parent();
+    var loadingOverlay = '<div class="csr-chart-loading">' +
+                        '<div class="csr-loading-spinner"></div>' +
+                        '</div>';
+    $container.css('position', 'relative').append(loadingOverlay);
+}
+
+function removeChartLoadingOverlay(selector) {
+    jQuery(selector).parent().find('.csr-chart-loading').remove();
+}
 
 function loadReportData(reportType) {
     var dateRange = getCurrentDateRange();
@@ -310,98 +527,172 @@ function loadReportData(reportType) {
         nonce: csr_ajax.nonce
     })
     .done(function(response) {
-        console.log(response);
         if (response.success) {
-            updateOverviewMetrics(response.data.summary);
-            updateRecentOrders(response.data.recent_orders);
+            // Remove loading states
+            jQuery('.csr-metric-card').removeClass('loading');
+            removeChartLoadingOverlay('#csr-sales-trend-chart');
+            removeChartLoadingOverlay('#csr-top-products-chart');
+            removeChartLoadingOverlay('#csr-page-views-chart');
+            
+            updateOverviewMetrics(response.data.sales_report);
+            updateMonthlyComparison(response.data.monthly_comparison);
+            updateAverageSales(response.data.average_sales);
             updateSalesTrendChart(response.data.sales_report);
             updateTopProductsChart(response.data.top_products);
+            updateTopRegions(response.data.top_regions);
+            updateTopViewedProducts(response.data.page_views);
+            updatePageViewsChart(response.data.page_views);
         } else {
             showError(response.data.message || csr_ajax.strings.error);
         }
     })
     .fail(function() {
+        // Remove loading states on error
+        jQuery('.csr-metric-card').removeClass('loading');
+        removeChartLoadingOverlay('#csr-sales-trend-chart');
+        removeChartLoadingOverlay('#csr-top-products-chart');
+        removeChartLoadingOverlay('#csr-page-views-chart');
+        
         showError(csr_ajax.strings.api_error);
     });
 }
 
-function updateOverviewMetrics(summary) {
-    if (!summary) return;
-    
-    jQuery('#metric-total-revenue').text(formatCurrency(summary.total_revenue || 0));
-    jQuery('#metric-total-orders').text(summary.total_orders || 0);
-    jQuery('#metric-avg-order').text(formatCurrency(summary.average_order_value || 0));
-    jQuery('#metric-total-items').text(summary.total_items || 0);
-    
-    // Update change indicators (placeholder for now)
-    updateChangeIndicator('#metric-revenue-change', 0);
-    updateChangeIndicator('#metric-orders-change', 0);
-    updateChangeIndicator('#metric-avg-change', 0);
-    updateChangeIndicator('#metric-items-change', 0);
+function updateOverviewMetrics(sales_report) {
+    if (!sales_report) return;
+    var sales_report = sales_report[0];
+    jQuery('#metric-total-revenue').text(formatCurrency(sales_report.total_sales || 0));
+    jQuery('#metric-total-orders').text(sales_report.total_orders || 0);
+    jQuery('#metric-avg-order').text(formatCurrency(sales_report.average_sales || 0));
 }
 
-function updateChangeIndicator(selector, change) {
-    var $element = jQuery(selector);
-    var className = 'neutral';
-    var text = '--';
+function updateMonthlyComparison(comparison) {
+    if (!comparison) return;
     
-    if (change > 0) {
-        className = 'positive';
-        text = '+' + change.toFixed(1) + '%';
-    } else if (change < 0) {
-        className = 'negative';
-        text = change.toFixed(1) + '%';
-    }
+    // Current vs Last Month Sales
+    jQuery('#metric-current-month-sales').text(formatCurrency(comparison.current_month_sales || 0));
+    jQuery('#metric-last-month-sales').text(formatCurrency(comparison.last_month_sales || 0));
     
-    $element.removeClass('positive negative neutral')
-             .addClass(className)
-             .text(text);
+    // Current vs Last Month Customers
+    jQuery('#metric-current-month-customers').text(comparison.current_month_customers || 0);
+    jQuery('#metric-last-month-customers').text(comparison.last_month_customers || 0);
 }
 
-function updateRecentOrders(orders) {
-    var $container = jQuery('#csr-recent-orders-content');
+function updateAverageSales(averages) {
+    if (!averages) return;
     
-    if (!orders || orders.length === 0) {
-        $container.html('<div class="csr-loading-placeholder">' + csr_ajax.strings.no_data + '</div>');
+    jQuery('#metric-avg-30days').text(formatCurrency(averages.avg_30_days || 0));
+    jQuery('#metric-avg-60days').text(formatCurrency(averages.avg_60_days || 0));
+    jQuery('#metric-avg-90days').text(formatCurrency(averages.avg_90_days || 0));
+}
+
+function updateTopRegions(topRegions) {
+    if (!topRegions || topRegions.length === 0) {
+        jQuery('#csr-top-regions').html('<div class="csr-loading-container"><span style="color: #666;">No data available</span></div>');
         return;
     }
     
-    var html = '<table class="csr-orders-table">';
-    html += '<thead><tr>';
-    html += '<th>' + '<?php _e( "Order", "catering-sales-report" ); ?>' + '</th>';
-    html += '<th>' + '<?php _e( "Customer", "catering-sales-report" ); ?>' + '</th>';
-    html += '<th>' + '<?php _e( "Date", "catering-sales-report" ); ?>' + '</th>';
-    html += '<th>' + '<?php _e( "Status", "catering-sales-report" ); ?>' + '</th>';
-    html += '<th>' + '<?php _e( "Total", "catering-sales-report" ); ?>' + '</th>';
-    html += '</tr></thead><tbody>';
-    
-    orders.forEach(function(order) {
-        var customerName = (order.billing && order.billing.first_name) 
-            ? order.billing.first_name + ' ' + order.billing.last_name 
-            : '<?php _e( "Guest", "catering-sales-report" ); ?>';
-        
-        var date = new Date(order.date_created).toLocaleDateString();
-        var statusClass = order.status.toLowerCase();
-        
-        html += '<tr>';
-        html += '<td>#' + order.number + '</td>';
-        html += '<td>' + escapeHtml(customerName) + '</td>';
-        html += '<td>' + date + '</td>';
-        html += '<td><span class="csr-order-status ' + statusClass + '">' + order.status + '</span></td>';
-        html += '<td>' + formatCurrency(order.total) + '</td>';
-        html += '</tr>';
+    var html = '';
+    topRegions.forEach(function(region) {
+        html += '<li class="csr-stat-item">';
+        html += '<span class="csr-stat-name">' + escapeHtml(region.city) + '</span>';
+        html += '<span class="csr-stat-value">' + formatCurrency(region.amount) + '</span>';
+        html += '</li>';
     });
     
-    html += '</tbody></table>';
-    $container.html(html);
+    if (html === '') {
+        html = '<div class="csr-loading-container"><span style="color: #666;">No regional data available</span></div>';
+    }
+    
+    jQuery('#csr-top-regions').html(html);
+}
+
+function updateTopViewedProducts(pageViewData) {
+    if (!pageViewData || !pageViewData.top_products || pageViewData.top_products.length === 0) {
+        jQuery('#csr-top-viewed-products').html('<div class="csr-loading-container"><span style="color: #666;">No page view data available</span></div>');
+        return;
+    }
+    
+    var html = '';
+    pageViewData.top_products.forEach(function(product) {
+        html += '<li class="csr-stat-item">';
+        html += '<span class="csr-stat-name">' + escapeHtml(product.name) + '</span>';
+        html += '<span class="csr-stat-value">' + product.views + ' views</span>';
+        html += '</li>';
+    });
+    
+    jQuery('#csr-top-viewed-products').html(html);
+}
+
+function updatePageViewsChart(pageViewData) {
+    var ctx = document.getElementById('csr-page-views-chart');
+    if (!ctx) return;
+    
+    // Destroy existing chart if it exists
+    if (window.pageViewsChart) {
+        window.pageViewsChart.destroy();
+    }
+    
+    if (!pageViewData || !pageViewData.daily_trends || pageViewData.daily_trends.length === 0) {
+        return;
+    }
+    
+    // Process data for chart
+    var labels = [];
+    var data = [];
+    
+    pageViewData.daily_trends.forEach(function(day) {
+        var date = new Date(day.view_date);
+        labels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+        data.push(parseInt(day.views || 0));
+    });
+    
+    var chartData = {
+        labels: labels,
+        datasets: [{
+            label: '<?php _e( "Page Views", "catering-sales-report" ); ?>',
+            data: data,
+            borderColor: '#FF8C00',
+            backgroundColor: 'rgba(255, 140, 0, 0.1)',
+            tension: 0.4,
+            fill: true,
+            pointBackgroundColor: '#FF8C00',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2
+        }]
+    };
+    
+    window.pageViewsChart = new Chart(ctx, {
+        type: 'line',
+        data: chartData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+}
+
+function showError(message) {
+    var errorHtml = '<div class="csr-error-message">' + escapeHtml(message) + '</div>';
+    jQuery('.csr-dashboard-grid').html(errorHtml);
 }
 
 function updateSalesTrendChart(salesReports) {
     // Chart.js implementation for sales trend
     var ctx = document.getElementById('csr-sales-trend-chart');
     if (!ctx) return;
-    
-    console.log('Sales reports data:', salesReports);
     
     // Destroy existing chart if it exists
     if (window.salesTrendChart) {
@@ -416,7 +707,6 @@ function updateSalesTrendChart(salesReports) {
     // Get the sales report data (should be the first item in array)
     var salesReport = salesReports[0];
     if (!salesReport || !salesReport.totals) {
-        console.log('No totals data found');
         return;
     }
     
@@ -536,13 +826,27 @@ function updateTopProductsChart(products) {
         return;
     }
     
+    // Colorful palette instead of just blue variants
+    var colorfulPalette = [
+        '#FF6B6B', // Red
+        '#4ECDC4', // Teal
+        '#45B7D1', // Blue
+        '#96CEB4', // Green
+        '#FFEAA7', // Yellow
+        '#DDA0DD', // Plum
+        '#98D8C8', // Mint
+        '#F7DC6F', // Light Yellow
+        '#BB8FCE', // Light Purple
+        '#85C1E9'  // Light Blue
+    ];
+    
     var chartData = {
         labels: products.map(p => p.name || 'Unknown Product'),
         datasets: [{
             data: products.map(p => p.quantity || 0),
-            backgroundColor: [
-                '#0073aa', '#00a0d2', '#0085ba', '#005a87', '#004b67'
-            ]
+            backgroundColor: colorfulPalette.slice(0, products.length),
+            borderWidth: 2,
+            borderColor: '#fff'
         }]
     };
     
@@ -554,7 +858,14 @@ function updateTopProductsChart(products) {
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    position: 'right'
+                    position: 'right',
+                    labels: {
+                        padding: 15,
+                        usePointStyle: true,
+                        font: {
+                            size: 12
+                        }
+                    }
                 }
             }
         }

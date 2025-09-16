@@ -14,23 +14,41 @@ $report_pages = isset( $report_pages ) ? $report_pages : CSR_Init::get_report_pa
 ?>
 
 <style>
-/* Left panel styles */
+/* Left panel styles - Updated to match design draft */
+
+#csr-left-panel {
+    width: 280px;
+    color: #fff;
+    background: #fff;
+    overflow-y: auto;
+    flex-shrink: 0;
+    position: relative;
+}
+
 .csr-panel-header {
     padding: 20px;
-    border-bottom: 1px solid #32373c;
-    background: #191e23;
+    text-align: center;
+    background: #fff;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.csr-panel-logo {
+    max-width: 80px;
+    height: auto;
+    margin: 0 auto 10px;
+    display: block;
 }
 
 .csr-panel-header h2 {
-    color: #fff;
+    color: #333;
     margin: 0;
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 600;
 }
 
 .csr-panel-header .csr-version {
-    color: #a0a5aa;
-    font-size: 12px;
+    color: #666;
+    font-size: 11px;
     margin-top: 5px;
 }
 
@@ -38,26 +56,29 @@ $report_pages = isset( $report_pages ) ? $report_pages : CSR_Init::get_report_pa
     list-style: none;
     margin: 0;
     padding: 0;
+    background: #fff;
 }
 
 .csr-nav-item {
     display: block;
-    color: #a0a5aa;
+    color: #333;
     text-decoration: none;
-    padding: 15px 20px;
-    border-bottom: 1px solid #32373c;
+    padding: 12px 20px;
     transition: all 0.2s ease;
     cursor: pointer;
     position: relative;
+    font-size: 14px;
+    background: #fff;
+    margin-bottom: unset;
 }
 
 .csr-nav-item:hover {
-    background: #32373c;
-    color: #00b9eb;
+    background: #f8f8f8;
+    color: #D2691E;
 }
 
 .csr-nav-item.active {
-    background: #0073aa;
+    background: #D2691E;
     color: #fff;
 }
 
@@ -68,21 +89,12 @@ $report_pages = isset( $report_pages ) ? $report_pages : CSR_Init::get_report_pa
     top: 0;
     bottom: 0;
     width: 3px;
-    background: #00b9eb;
+    background: #FF8C00;
 }
 
+/* Remove icon and description styles */
 .csr-nav-icon {
-    width: 20px;
-    height: 20px;
-    margin-right: 10px;
-    vertical-align: top;
-    display: inline-block;
-}
-
-.csr-nav-icon:before {
-    font-family: dashicons;
-    font-size: 20px;
-    line-height: 1;
+    display: none;
 }
 
 .csr-nav-title {
@@ -92,30 +104,18 @@ $report_pages = isset( $report_pages ) ? $report_pages : CSR_Init::get_report_pa
 }
 
 .csr-nav-description {
-    font-size: 12px;
-    color: #8c8f94;
-    margin-top: 3px;
-    line-height: 1.4;
-    display: block;
+    display: none;
 }
 
-.csr-nav-item:hover .csr-nav-description {
-    color: #a0a5aa;
-}
-
-.csr-nav-item.active .csr-nav-description {
-    color: #e1f5fe;
-}
-
-/* Date range selector */
+/* Date range selector - Updated colors */
 .csr-date-range {
     padding: 20px;
-    border-bottom: 1px solid #32373c;
-    background: #191e23;
+    border-bottom: 1px solid #e0e0e0;
+    background: #fff;
 }
 
 .csr-date-range h3 {
-    color: #fff;
+    color: #333;
     margin: 0 0 15px 0;
     font-size: 14px;
     font-weight: 600;
@@ -124,66 +124,49 @@ $report_pages = isset( $report_pages ) ? $report_pages : CSR_Init::get_report_pa
 .csr-date-range select,
 .csr-date-range input {
     width: 100%;
-    padding: 8px;
     margin-bottom: 10px;
-    border: 1px solid #32373c;
-    background: #32373c;
-    color: #fff;
-    border-radius: 3px;
+    border: 1px solid #ddd;
+    background: #fff;
+    color: #333;
+    border-radius: 4px;
     font-size: 13px;
+}
+
+.csr-date-range select:focus,
+.csr-date-range input:focus {
+    border-color: #D2691E;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(210, 105, 30, 0.1);
 }
 
 .csr-date-range .button {
     width: 100%;
     text-align: center;
-    background: #0073aa;
-    border-color: #0073aa;
+    background: #ea8843;
+    border:1px solid #ea8843;
     color: #fff;
-    padding: 8px;
     font-size: 13px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
 }
 
 .csr-date-range .button:hover {
-    background: #005a87;
-    border-color: #005a87;
+    background: #FFF!important;
+    color: #D2691E!important;
+    border:1px solid #ea8843!important;
 }
 
-/* Quick stats */
-.csr-quick-stats {
-    padding: 20px;
-    background: #191e23;
-}
-
-.csr-quick-stats h3 {
-    color: #fff;
-    margin: 0 0 15px 0;
-    font-size: 14px;
-    font-weight: 600;
-}
-
-.csr-stat-item {
-    display: flex;
-    justify-content: space-between;
-    padding: 8px 0;
-    border-bottom: 1px solid #32373c;
-    color: #a0a5aa;
-    font-size: 13px;
-}
-
-.csr-stat-item:last-child {
-    border-bottom: none;
-}
-
-.csr-stat-value {
-    color: #00b9eb;
-    font-weight: 600;
-}
-
-/* API status indicator */
+/* API status indicator - Updated colors and fixed positioning */
 .csr-api-status {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
     padding: 15px 20px;
-    background: #191e23;
-    border-top: 1px solid #32373c;
+    background: #fff;
+    border-top: 1px solid #e0e0e0;
+    z-index: 100;
 }
 
 .csr-api-status-indicator {
@@ -208,18 +191,38 @@ $report_pages = isset( $report_pages ) ? $report_pages : CSR_Init::get_report_pa
 }
 
 .csr-status-text {
-    color: #a0a5aa;
+    color: #666;
 }
 </style>
 
 <div class="csr-panel-header">
-    <h2><?php _e( 'Sales Reports', 'catering-sales-report' ); ?></h2>
+    <?php
+    // Get site logo - try custom logo first, then site icon, then fallback
+    $custom_logo_id = get_theme_mod( 'custom_logo' );
+    $logo_url = '';
+    
+    if ( $custom_logo_id ) {
+        $logo_url = wp_get_attachment_image_url( $custom_logo_id, 'medium' );
+    } elseif ( has_site_icon() ) {
+        $logo_url = get_site_icon_url( 128 );
+    }
+    
+    if ( $logo_url ) : ?>
+        <img src="<?php echo esc_url( $logo_url ); ?>" alt="<?php echo esc_attr( get_bloginfo( 'name' ) ); ?>" class="csr-panel-logo">
+    <?php else : ?>
+        <!-- Fallback logo placeholder -->
+        <div class="csr-panel-logo" style="width: 80px; height: 80px; background: #D2691E; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; margin: 0 auto 10px;">
+            <?php echo esc_html( substr( get_bloginfo( 'name' ), 0, 2 ) ); ?>
+        </div>
+    <?php endif; ?>
+    
+    <h2><?php _e( '銷售報告', 'catering-sales-report' ); ?></h2>
     <div class="csr-version"><?php echo sprintf( __( 'Version %s', 'catering-sales-report' ), CSR_VERSION ); ?></div>
 </div>
 
 <!-- Date Range Selector -->
 <div class="csr-date-range">
-    <h3><?php _e( 'Date Range', 'catering-sales-report' ); ?></h3>
+    <h3><?php _e( '日期範圍', 'catering-sales-report' ); ?></h3>
     
     <select id="csr-date-preset">
         <?php foreach ( CSR_Init::get_date_range_options() as $key => $label ): ?>
@@ -228,51 +231,41 @@ $report_pages = isset( $report_pages ) ? $report_pages : CSR_Init::get_report_pa
     </select>
     
     <div id="csr-custom-dates" style="display: none;">
-        <input type="date" id="csr-start-date" placeholder="<?php _e( 'Start Date', 'catering-sales-report' ); ?>">
-        <input type="date" id="csr-end-date" placeholder="<?php _e( 'End Date', 'catering-sales-report' ); ?>">
+        <input type="date" id="csr-start-date" placeholder="<?php _e( '開始日期', 'catering-sales-report' ); ?>">
+        <input type="date" id="csr-end-date" placeholder="<?php _e( '結束日期', 'catering-sales-report' ); ?>">
     </div>
     
     <button type="button" class="button" id="csr-apply-date-range">
-        <?php _e( 'Apply', 'catering-sales-report' ); ?>
+        <?php _e( '套用', 'catering-sales-report' ); ?>
     </button>
 </div>
 
 <!-- Navigation Menu -->
 <ul class="csr-nav-menu">
-    <?php foreach ( $report_pages as $page_key => $page_data ): ?>
-        <li class="csr-nav-item<?php echo ( $current_page === $page_key ) ? ' active' : ''; ?>" 
-            data-report="<?php echo esc_attr( $page_key ); ?>">
-            <span class="csr-nav-icon dashicons <?php echo esc_attr( $page_data['icon'] ); ?>"></span>
-            <span class="csr-nav-title"><?php echo esc_html( $page_data['title'] ); ?></span>
-            <span class="csr-nav-description"><?php echo esc_html( $page_data['description'] ); ?></span>
-        </li>
-    <?php endforeach; ?>
+    <?php 
+    // Simplified menu items with Chinese labels to match design
+    $simplified_menu = array(
+        'overview' => '銷售總覽',
+        'trend' => '銷售趨勢', 
+        'payment' => '付款方式',
+        'channel' => '銷售渠道',
+        'product-sales' => '產品銷售',
+        'promotion' => '促銷活動',
+        'region' => '地區銷售',
+        'membership' => '會員分析'
+    );
+    
+    foreach ( $simplified_menu as $page_key => $title ): 
+        if ( isset( $report_pages[$page_key] ) ): ?>
+            <li class="csr-nav-item<?php echo ( $current_page === $page_key ) ? ' active' : ''; ?>" 
+                data-report="<?php echo esc_attr( $page_key ); ?>">
+                <span class="csr-nav-title"><?php echo esc_html( $title ); ?></span>
+            </li>
+        <?php endif;
+    endforeach; ?>
 </ul>
 
-<!-- Quick Stats -->
-<div class="csr-quick-stats">
-    <h3><?php _e( 'Quick Stats', 'catering-sales-report' ); ?></h3>
-    <div id="csr-quick-stats-content">
-        <div class="csr-stat-item">
-            <span><?php _e( 'Today\'s Sales', 'catering-sales-report' ); ?></span>
-            <span class="csr-stat-value" id="csr-stat-today-sales">--</span>
-        </div>
-        <div class="csr-stat-item">
-            <span><?php _e( 'This Month', 'catering-sales-report' ); ?></span>
-            <span class="csr-stat-value" id="csr-stat-month-sales">--</span>
-        </div>
-        <div class="csr-stat-item">
-            <span><?php _e( 'Total Orders', 'catering-sales-report' ); ?></span>
-            <span class="csr-stat-value" id="csr-stat-total-orders">--</span>
-        </div>
-        <div class="csr-stat-item">
-            <span><?php _e( 'Avg. Order Value', 'catering-sales-report' ); ?></span>
-            <span class="csr-stat-value" id="csr-stat-avg-order">--</span>
-        </div>
-    </div>
-</div>
-
-<!-- API Status -->
+<!-- API Status - Fixed at bottom -->
 <div class="csr-api-status">
     <div class="csr-api-status-indicator">
         <span class="csr-status-dot <?php echo $credentials_configured ? 'connected' : 'disconnected'; ?>"></span>
@@ -301,27 +294,16 @@ jQuery(document).ready(function($) {
     $('#csr-apply-date-range').on('click', function() {
         var preset = $('#csr-date-preset').val();
         
-        // Get the current date range and assign to global variables
-        getCurrentDateRange();
-        
         // Trigger report refresh with new date range
         if (typeof loadReportContent === 'function') {
             var currentReport = $('.csr-nav-item.active').data('report') || 'overview';
             loadReportContent(currentReport);
         }
-        
-        // Update quick stats
-        // updateQuickStats(preset, startDate, endDate);
     });
-    
-    // Load initial quick stats
-    <?php if ( $credentials_configured ): ?>
-        // updateQuickStats('this_month');
-    <?php endif; ?>
 });
 
 
-function getCurrentDateRange() {
+function getCurrentDateRange( getFullRange = false ) {
     // Get current date range from the date picker
     var preset = jQuery('#csr-date-preset').val() || 'this_month';
     
@@ -363,7 +345,9 @@ function getCurrentDateRange() {
             var dayOfWeek = start.getDay(); // 0 = Sunday, 1 = Monday, etc.
             var daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Make Monday the start
             start.setDate(start.getDate() - daysToSubtract);
-            end = new Date(today);
+            // End should be Sunday of this week, not today
+            end = new Date(start);
+            end.setDate(end.getDate() + 6); // End of this week (Sunday)
             break;
             
         case 'last_week':
@@ -378,7 +362,12 @@ function getCurrentDateRange() {
             
         case 'this_month':
             start = new Date(today.getFullYear(), today.getMonth(), 1); // First day of current month
-            end = new Date(today);
+            // End should be last day of this month, not today
+            if ( getFullRange ) {
+                end = new Date(today.getFullYear(), today.getMonth() + 1, 0); // Last day of current month
+            } else {
+                end = new Date(today); // Up to today
+            }
             break;
             
         case 'last_month':
@@ -386,27 +375,13 @@ function getCurrentDateRange() {
             end = new Date(today.getFullYear(), today.getMonth(), 0); // Last day of last month
             break;
             
-        case 'this_quarter':
-            var quarterStartMonth = Math.floor(today.getMonth() / 3) * 3;
-            start = new Date(today.getFullYear(), quarterStartMonth, 1);
-            end = new Date(today);
-            break;
-            
-        case 'last_quarter':
-            var lastQuarterStartMonth = Math.floor(today.getMonth() / 3) * 3 - 3;
-            if (lastQuarterStartMonth < 0) {
-                lastQuarterStartMonth = 9;
-                start = new Date(today.getFullYear() - 1, lastQuarterStartMonth, 1);
-                end = new Date(today.getFullYear(), 0, 0); // Last day of December previous year
-            } else {
-                start = new Date(today.getFullYear(), lastQuarterStartMonth, 1);
-                end = new Date(today.getFullYear(), lastQuarterStartMonth + 3, 0); // Last day of quarter
-            }
-            break;
-            
         case 'this_year':
             start = new Date(today.getFullYear(), 0, 1); // January 1st of current year
-            end = new Date(today);
+            if ( getFullRange ) {
+                end = new Date(today.getFullYear(), 11, 31); // December 31st of current year
+            } else {
+                end = new Date(today); // Up to today
+            }
             break;
             
         case 'last_year':
@@ -431,27 +406,4 @@ function getCurrentDateRange() {
 
     return { start: startDate, end: endDate };
 }
-
-// function updateQuickStats(preset, startDate, endDate) {
-//     jQuery.post(csr_ajax.ajax_url, {
-//         action: 'csr_get_quick_stats',
-//         preset: preset,
-//         start_date: startDate,
-//         end_date: endDate,
-//         nonce: csr_ajax.nonce
-//     })
-//     .done(function(response) {
-//         if (response.success) {
-//             var stats = response.data;
-//             jQuery('#csr-stat-today-sales').text(stats.today_sales || '--');
-//             jQuery('#csr-stat-month-sales').text(stats.month_sales || '--');
-//             jQuery('#csr-stat-total-orders').text(stats.total_orders || '--');
-//             jQuery('#csr-stat-avg-order').text(stats.avg_order || '--');
-//         }
-//     })
-//     .fail(function() {
-//         // Keep showing placeholder values on error
-//         console.log('Failed to load quick stats');
-//     });
-// }
 </script>
