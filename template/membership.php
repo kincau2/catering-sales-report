@@ -55,7 +55,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
     
     .csr-bottom-row {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 2fr 3fr;
         gap: 20px;
         align-items: start;
     }
@@ -111,7 +111,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
     }
     
     .csr-widget-title {
-        font-size: 16px;
+        font-size: 18px;
         font-weight: 600;
         color: #23282d;
         margin: 0 0 5px 0;
@@ -132,11 +132,10 @@ if ( ! defined( 'ABSPATH' ) ) exit;
     
     .csr-region-item {
         display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 8px 0;
+        flex-direction: column;
+        padding: 12px 0;
         font-size: 14px;
-        border-bottom: 1px solid #f0f0f1;
+        gap: 8px;
     }
     
     .csr-region-item:last-child {
@@ -146,11 +145,49 @@ if ( ! defined( 'ABSPATH' ) ) exit;
     .csr-region-name {
         color: #23282d;
         font-weight: 500;
+        margin-bottom: 4px;
+        display: flex;
+        justify-content: space-between;
+    }
+    
+    .csr-region-stats {
+        display: flex;
+        align-items: center;
+        gap: 10px;
     }
     
     .csr-region-count {
         color: #666;
         font-weight: 400;
+        font-size: 13px;
+        min-width: 80px;
+    }
+    
+    .csr-progress-bar {
+        flex: 1;
+        height: 8px;
+        background-color: #e0e0e0;
+        border-radius: 4px;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .csr-progress-fill {
+        height: 100%;
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+    
+    .csr-progress-fill.region-hk {
+        background-color: #8b5cf6;
+    }
+    
+    .csr-progress-fill.region-kl {
+        background-color: #10b981;
+    }
+    
+    .csr-progress-fill.region-nt {
+        background-color: #f59e0b;
     }
     
     /* Monthly table widget */
@@ -170,37 +207,41 @@ if ( ! defined( 'ABSPATH' ) ) exit;
     .csr-table {
         width: 100%;
         border-collapse: collapse;
-        font-size: 12px;
+        font-size: 14px;
+        background: transparent;
     }
     
     .csr-table th {
-        background: #f9f9f9;
+        background: transparent;
         padding: 8px 6px;
         text-align: center;
         font-weight: 600;
-        border: 1px solid #ddd;
+        border: none;
         color: #23282d;
         white-space: nowrap;
+        border-bottom: 1px solid #e0e0e0;
     }
     
     .csr-table td {
-        padding: 6px;
+        padding: 8px 6px;
         text-align: center;
-        border: 1px solid #ddd;
+        border: none;
         color: #666;
+        background: transparent;
     }
     
-    .csr-table tbody tr:nth-child(even) {
-        background: #f9f9f9;
+    .csr-table tbody tr {
+        background: transparent;
     }
     
     .csr-table tbody tr:hover {
-        background: #f0f8ff;
+        background: #f8f9fa;
     }
     
     .csr-month-cell {
         font-weight: 500;
         color: #23282d;
+        text-align: left;
     }
     
     .csr-positive {
@@ -209,6 +250,15 @@ if ( ! defined( 'ABSPATH' ) ) exit;
     
     .csr-negative {
         color: #d63638;
+    }
+    
+    .csr-status-indicator {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 6px;
+        vertical-align: middle;
     }
     
     /* Bottom analytics grid */
@@ -394,13 +444,22 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         .csr-table td {
             padding: 4px;
         }
+        
+        .csr-region-stats {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+        }
+        
+        .csr-progress-bar {
+            width: 100%;
+        }
     }
     </style>
 
     <!-- Header -->
     <div class="csr-membership-header">
         <h1><?php _e( '會員數據庫', 'catering-sales-report' ); ?></h1>
-        <p class="csr-membership-subtitle"><?php _e( '會員註冊趨勢、地理分佈及消費行為分析', 'catering-sales-report' ); ?></p>
     </div>
 
     <!-- Main Dashboard Grid -->
@@ -616,12 +675,26 @@ function updateGeographicDistribution(geographicData) {
             });
         });
         
-        // Display regions in specified format
+        // Define region classes for progress bars
+        var regionClasses = {
+            '香港島': 'region-hk',
+            '九龍': 'region-kl', 
+            '新界': 'region-nt'
+        };
+        
+        // Display regions in progress bar format
         Object.keys(regionTotals).forEach(function(region) {
             var count = regionTotals[region];
+            var percentage = totalUsers > 0 ? (count / totalUsers) * 100 : 0;
+            var regionClass = regionClasses[region] || 'region-hk';
+            
             html += '<div class="csr-region-item">';
-            html += '  <span class="csr-region-name">' + region + '</span>';
-            html += '  <span class="csr-region-count">' + count + ' / ' + totalUsers + '人</span>';
+            html += '  <div class="csr-region-name">' + region + '<span class="csr-region-count">' + count + ' / ' + totalUsers + '人</span> </div>';
+            html += '  <div class="csr-region-stats">';
+            html += '    <div class="csr-progress-bar">';
+            html += '      <div class="csr-progress-fill ' + regionClass + '" style="width: ' + percentage + '%"></div>';
+            html += '    </div>';
+            html += '  </div>';
             html += '</div>';
         });
     }
@@ -653,18 +726,17 @@ function updateMonthlyTable(monthlyData, summary) {
             return new Date(b.month + '-01') - new Date(a.month + '-01');
         });
         
-        // Display last 6 months
-        var displayData = sortedData.slice(0, 6);
-        
-        displayData.forEach(function(monthData) {
+        sortedData.forEach(function(monthData) {
             var monthLabel = formatMonthLabel(monthData.month);
             var totalOrders = monthData.total_orders || 0;
-            var avgSpending = monthData.avg_spending || 0;
+            var avgSpending = monthData.avg_spending_per_customer || 0;
             var repeatCustomers = monthData.repeat_customers_90d || 0;
             var repeatRate = monthData.repeat_purchase_rate || 0;
             
             html += '<tr>';
-            html += '<td class="csr-month-cell">' + monthLabel + '</td>';
+            html += '<td class="csr-month-cell">';
+            html += monthLabel;
+            html += '</td>';
             html += '<td>' + formatNumber(totalOrders) + '</td>';
             html += '<td>HK$' + formatNumber(avgSpending) + '</td>';
             html += '<td>' + formatNumber(repeatCustomers) + '</td>';

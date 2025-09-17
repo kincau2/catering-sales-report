@@ -367,6 +367,7 @@ class CSR_WooCommerce_Interface {
         
         $user_registrations = $wpdb->get_results( $user_registration_sql );
         
+
         // Process user registration data
         foreach ( $user_registrations as $reg ) {
             if ( isset( $monthly_data[ $reg->month ] ) ) {
@@ -498,7 +499,7 @@ class CSR_WooCommerce_Interface {
             
             // Calculate average spending per customer
             $data['avg_spending_per_customer'] = $active_user_count > 0 ? 
-                $data['total_sales'] / $active_user_count : 0;
+                round( $data['total_sales'] / $active_user_count ,0) : 0;
             
             // Calculate repeat purchase rate
             $data['repeat_purchase_rate'] = $active_user_count > 0 ? 
@@ -510,16 +511,17 @@ class CSR_WooCommerce_Interface {
         
         // Step 8: Build user trends data for bar chart
         $user_trends_data = array();
-        foreach ( $monthly_data as $month => $data ) {
+        
+        foreach ( $monthly_data as $month => $month_data ) {
             $user_trends_data[] = array(
                 'month' => $month,
-                'month_label' => $data['month_label'],
-                'new_users' => $data['new_users'],
-                'active_users' => $data['active_users'],
+                'month_label' => $month_data['month_label'],
+                'new_users' => $month_data['new_users'],
+                'active_users' => $month_data['active_users'],
                 'total_users' => isset( $total_users_cumulative[ $month ] ) ? $total_users_cumulative[ $month ] : 0
             );
         }
-        
+        set_transient( 'debug', $user_trends_data, 30 );
         // Step 9: Calculate overall summary
         $summary = $this->calculate_membership_summary( $monthly_data, $geographic_distribution );
         
