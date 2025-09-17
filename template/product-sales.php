@@ -76,8 +76,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
     .csr-chart-section {
         display: flex;
         flex-direction: column;
-        height: 350px; /* Fixed height like overview.php */
-        max-height: 350px;
+        height: 480px; /* Fixed height like overview.php */
+        max-height: 480px;
         overflow: hidden;
     }
     
@@ -111,15 +111,15 @@ if ( ! defined( 'ABSPATH' ) ) exit;
     .csr-product-pie-chart,
     .csr-product-line-chart {
         position: relative;
-        height: 280px; /* Fixed height instead of flex: 1 */
-        max-height: 280px;
+        height: 380px; /* Fixed height instead of flex: 1 */
+        max-height: 380px;
     }
     
     .csr-quantity-pie-chart,
     .csr-quantity-line-chart {
         position: relative;
-        height: 280px; /* Fixed height instead of flex: 1 */
-        max-height: 280px;
+        height: 380px; /* Fixed height instead of flex: 1 */
+        max-height: 380px;
     }
     
     /* Loading states */
@@ -298,6 +298,10 @@ function removeChartLoadingOverlay(selector) {
     jQuery(selector).parent().find('.csr-chart-loading').remove();
 }
 
+// Global color mapping variables
+var productSalesColorMap = {};
+var productQuantityColorMap = {};
+
 function loadProductSalesData() {
     var dateRange = getCurrentDateRange();
     
@@ -311,6 +315,10 @@ function loadProductSalesData() {
     })
     .done(function(response) {
         if (response.success && response.data) {
+            // Store color mappings globally for consistency
+            productSalesColorMap = response.data.sales_color_map || {};
+            productQuantityColorMap = response.data.quantity_color_map || {};
+            
             updateProductSalesCharts(response.data);
             updateProductQuantityCharts(response.data);
         } else {
@@ -334,6 +342,7 @@ function updateProductSalesCharts(data) {
 }
 
 function updateProductQuantityCharts(data) {
+    console.log('Updating product quantity charts with data:', data.quantity_trends);
     updateProductQuantityPieChart(data.top_products_by_quantity || []);
     updateProductQuantityLineChart(data.quantity_trends || []);
 }
@@ -360,7 +369,7 @@ function updateProductSalesPieChart(products) {
     products.forEach(function(product, index) {
         labels.push(product.name || '未知產品');
         data.push(parseFloat(product.total_sales || 0));
-        colors.push(getColorForLabel(product.name || '未知產品', index));
+        colors.push(getColorForLabel(product.name || '未知產品', index, 'sales'));
     });
     
     var chartData = {
@@ -457,7 +466,7 @@ function updateProductSalesLineChart(trends) {
                 : 0;
         });
         
-        var color = getColorForLabel(product, productIndex);
+        var color = getColorForLabel(product, productIndex, 'sales');
         datasets.push({
             label: product,
             data: data,
@@ -544,7 +553,7 @@ function updateProductQuantityPieChart(products) {
     products.forEach(function(product, index) {
         labels.push(product.name || '未知產品');
         data.push(parseInt(product.quantity || 0));
-        colors.push(getColorForLabel(product.name || '未知產品', index));
+        colors.push(getColorForLabel(product.name || '未知產品', index, 'quantity'));
     });
     
     var chartData = {
@@ -641,7 +650,7 @@ function updateProductQuantityLineChart(trends) {
                 : 0;
         });
         
-        var color = getColorForLabel(product, productIndex);
+        var color = getColorForLabel(product, productIndex, 'quantity');
         datasets.push({
             label: product,
             data: data,
@@ -707,30 +716,27 @@ function updateProductQuantityLineChart(trends) {
 }
 
 // Centralized color mapping for consistent colors across charts
-function getColorForLabel(label, index) {
-    // Define specific colors for known products - can be expanded
-    var colorMapping = {
-        // Common product types
-        '套餐A': '#3498db',      // Blue
-        '套餐B': '#e74c3c',      // Red  
-        '套餐C': '#2ecc71',      // Green
-        '單品': '#f39c12',       // Orange
-        '飲料': '#9b59b6',       // Purple
-        '甜品': '#1abc9c',       // Turquoise
-        '小食': '#e67e22',       // Dark Orange
-        '湯品': '#34495e'        // Dark Blue Grey
-    };
+function getColorForLabel(label, index, chartType) {
+    // Use consistent color mapping from the API
+    var colorMap = {};
     
-    // Return specific color if mapped, otherwise use default colors
-    if (colorMapping[label]) {
-        return colorMapping[label];
+    if (chartType === 'sales') {
+        colorMap = productSalesColorMap;
+    } else if (chartType === 'quantity') {
+        colorMap = productQuantityColorMap;
     }
     
-    // Default color palette for unmapped labels
+    // Return consistent color if available
+    if (colorMap[label]) {
+        return colorMap[label];
+    }
+    
+    // Fallback to default colors if mapping not available
     var defaultColors = [
-        '#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', 
-        '#1abc9c', '#e67e22', '#34495e', '#f1c40f', '#e91e63',
-        '#95a5a6', '#16a085', '#27ae60', '#2980b9', '#8e44ad'
+        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+        '#FF9F40', '#FF6B6B', '#C9CBCF', '#4ECDC4', '#45B7D1',
+        '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
+        '#F8C471', '#82E0AA', '#F1948A', '#AED6F1', '#D5DBDB'
     ];
     
     return defaultColors[index % defaultColors.length];

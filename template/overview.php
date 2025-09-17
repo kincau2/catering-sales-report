@@ -828,16 +828,11 @@ function updateTopProductsChart(products) {
     
     // Colorful palette instead of just blue variants
     var colorfulPalette = [
-        '#FF6B6B', // Red
-        '#4ECDC4', // Teal
-        '#45B7D1', // Blue
-        '#96CEB4', // Green
-        '#FFEAA7', // Yellow
-        '#DDA0DD', // Plum
-        '#98D8C8', // Mint
-        '#F7DC6F', // Light Yellow
-        '#BB8FCE', // Light Purple
-        '#85C1E9'  // Light Blue
+        '#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', 
+        '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4', 
+        '#469990', '#dcbeff', '#9A6324', '#fffac8', '#800000', 
+        '#aaffc3', '#808000', '#ffd8b1', '#000075', '#a9a9a9', 
+        '#000000'
     ];
     
     var chartData = {
