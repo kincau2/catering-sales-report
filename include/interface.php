@@ -98,25 +98,15 @@ class CSR_WooCommerce_Interface {
             throw new Exception( $sales_report->get_error_message() );
         }
         
-        // Get orders with date filtering
-        if ( $start_date ) {
-            $order_params['after'] = date( 'Y-m-d\TH:i:s', strtotime( $start_date ) );
-        }
-        if ( $end_date ) {
-            $order_params['before'] = date( 'Y-m-d\TH:i:s', strtotime( $end_date . ' +1 day' ) );
-        }
-        
-        $orders = $this->make_request_with_params( 'orders', $order_params );
-        if ( is_wp_error( $orders ) ) {
-            throw new Exception( $orders->get_error_message() );
-        }
-        set_transient( 'debug', $orders, 30 );
+        // NEW: Get orders using native HPOS SQL query
+        $orders = $this->get_orders_via_hpos( $start_date, $end_date );
+
         // Get top selling products
         $top_products = $this->make_request( 'reports/top_sellers', $start_date, $end_date );
         if ( is_wp_error( $top_products ) ) {
             throw new Exception( $top_products->get_error_message() );
         }
-
+        
         return array(
             'sales_report' => $sales_report,
             'top_products' => $top_products,
@@ -176,18 +166,8 @@ class CSR_WooCommerce_Interface {
      * Get payment method analysis data
      */
     private function get_payment_data( $start_date = null, $end_date = null ) {
-        // Get orders for payment method analysis
-        if ( $start_date ) {
-            $order_params['after'] = date( 'Y-m-d\TH:i:s', strtotime( $start_date ) );
-        }
-        if ( $end_date ) {
-            $order_params['before'] = date( 'Y-m-d\TH:i:s', strtotime( $end_date . ' +1 day' ) );
-        }
-        
-        $orders = $this->make_request_with_params( 'orders', $order_params );
-        if ( is_wp_error( $orders ) ) {
-            throw new Exception( $orders->get_error_message() );
-        }
+  
+        $orders = $this->get_orders_via_hpos( $start_date, $end_date );
         
         // Get monthly trends for last 12 months
         $monthly_trends = $this->get_payment_monthly_trends();
@@ -204,20 +184,8 @@ class CSR_WooCommerce_Interface {
      * Get product sales data
      */
     private function get_product_sales_data( $start_date = null, $end_date = null ) {
-        // Get orders for product analysis
-        $order_params = array( 'per_page' => 100 );
-        if ( $start_date ) {
-            $order_params['after'] = date( 'Y-m-d\TH:i:s', strtotime( $start_date ) );
-        }
-        if ( $end_date ) {
-            $order_params['before'] = date( 'Y-m-d\TH:i:s', strtotime( $end_date . ' +1 day' ) );
-        }
-        
-        $orders = $this->make_request_with_params( 'orders', $order_params );
-        if ( is_wp_error( $orders ) ) {
-            throw new Exception( $orders->get_error_message() );
-        }
-        
+        $orders = $this->get_orders_via_hpos( $start_date, $end_date );
+
         // Process all product data in a single loop for efficiency
         $product_data = $this->process_all_product_data( $orders, $start_date, $end_date );
         
@@ -239,19 +207,7 @@ class CSR_WooCommerce_Interface {
      * Get regional sales data
      */
     private function get_region_data( $start_date = null, $end_date = null ) {
-        // Get orders for regional analysis
-        $order_params = array( 'per_page' => 100 );
-        if ( $start_date ) {
-            $order_params['after'] = date( 'Y-m-d\TH:i:s', strtotime( $start_date ) );
-        }
-        if ( $end_date ) {
-            $order_params['before'] = date( 'Y-m-d\TH:i:s', strtotime( $end_date . ' +1 day' ) );
-        }
-        
-        $orders = $this->make_request_with_params( 'orders', $order_params );
-        if ( is_wp_error( $orders ) ) {
-            throw new Exception( $orders->get_error_message() );
-        }
+        $orders = $this->get_orders_via_hpos( $start_date, $end_date );
         
         // Process all regional data in a single loop for efficiency
         $regional_data = $this->process_all_regional_data( $orders, $start_date, $end_date );
@@ -268,19 +224,7 @@ class CSR_WooCommerce_Interface {
      * Get channel analysis data
      */
     private function get_channel_data( $start_date = null, $end_date = null ) {
-        // Get orders for channel analysis
-        $order_params = array( 'per_page' => 100 );
-        if ( $start_date ) {
-            $order_params['after'] = date( 'Y-m-d\TH:i:s', strtotime( $start_date ) );
-        }
-        if ( $end_date ) {
-            $order_params['before'] = date( 'Y-m-d\TH:i:s', strtotime( $end_date . ' +1 day' ) );
-        }
-        
-        $orders = $this->make_request_with_params( 'orders', $order_params );
-        if ( is_wp_error( $orders ) ) {
-            throw new Exception( $orders->get_error_message() );
-        }
+        $orders = $this->get_orders_via_hpos( $start_date, $end_date );
         
         // Get monthly trends for last 12 months
         $monthly_trends = $this->get_channel_monthly_trends();
@@ -521,7 +465,7 @@ class CSR_WooCommerce_Interface {
                 'total_users' => isset( $total_users_cumulative[ $month ] ) ? $total_users_cumulative[ $month ] : 0
             );
         }
-        set_transient( 'debug', $user_trends_data, 30 );
+
         // Step 9: Calculate overall summary
         $summary = $this->calculate_membership_summary( $monthly_data, $geographic_distribution );
         
@@ -617,19 +561,7 @@ class CSR_WooCommerce_Interface {
             throw new Exception( $coupons->get_error_message() );
         }
         
-        // Get orders to calculate coupon usage within date range
-        $order_params = array( 'per_page' => 100 );
-        if ( $start_date ) {
-            $order_params['after'] = date( 'Y-m-d\TH:i:s', strtotime( $start_date ) );
-        }
-        if ( $end_date ) {
-            $order_params['before'] = date( 'Y-m-d\TH:i:s', strtotime( $end_date . ' +1 day' ) );
-        }
-        
-        $orders = $this->make_request_with_params( 'orders', $order_params );
-        if ( is_wp_error( $orders ) ) {
-            throw new Exception( $orders->get_error_message() );
-        }
+        $orders = $this->get_orders_via_hpos( $start_date, $end_date );
         
         // Process coupon usage data
         $coupon_usage_data = $this->process_coupon_usage( $coupons, $orders );
@@ -1000,15 +932,9 @@ class CSR_WooCommerce_Interface {
             $month_end->modify( 'last day of this month' );
             $month_end->setTime( 23, 59, 59 );
             
-            // Get orders for this month
-            $order_params = array(
-                'per_page' => 100,
-                'after' => $month_start->format( 'Y-m-d\TH:i:s' ),
-                'before' => $month_end->format( 'Y-m-d\TH:i:s' )
-            );
+            // Get orders for this month using HPOS SQL query
+            $orders = $this->get_orders_via_hpos( $month_start->format( 'Y-m-d' ), $month_end->format( 'Y-m-d' ) );
             
-            $orders = $this->make_request_with_params( 'orders', $order_params );
-            set_transient( 'debug', $orders, 30 );
             $payment_methods = array();
             if ( !is_wp_error( $orders ) ) {
                 foreach ( $orders as $order ) {
@@ -1027,7 +953,7 @@ class CSR_WooCommerce_Interface {
                 'payment_methods' => $payment_methods
             );
         }
-        
+
         return $monthly_trends;
     }
     
@@ -1343,14 +1269,7 @@ class CSR_WooCommerce_Interface {
             $month_end->modify( 'last day of this month' );
             $month_end->setTime( 23, 59, 59 );
             
-            // Get orders for this month
-            $order_params = array(
-                'per_page' => 100,
-                'after' => $month_start->format( 'Y-m-d\TH:i:s' ),
-                'before' => $month_end->format( 'Y-m-d\TH:i:s' )
-            );
-            
-            $orders = $this->make_request_with_params( 'orders', $order_params );
+            $orders = $this->get_orders_via_hpos( $month_start->format( 'Y-m-d' ), $month_end->format( 'Y-m-d' ) );
             
             $channels = array();
             if ( !is_wp_error( $orders ) ) {
@@ -1460,18 +1379,26 @@ class CSR_WooCommerce_Interface {
         $products_by_sales = array();
         $products_by_quantity = array();
         
-        // First pass: Collect all product data
-        foreach ( $orders as $order ) {
-            if ( isset( $order->line_items ) && is_array( $order->line_items ) ) {
-                foreach ( $order->line_items as $item ) {
+        // Convert HPOS results to full order objects for line_items access
+        foreach ( $orders as $order_data ) {
+            $order = wc_get_order( $order_data->id );
+            if ( !$order ) {
+                continue; // Skip if order not found
+            }
+            
+            // Get line items from the WooCommerce order object
+            $line_items = $order->get_items();
+            
+            if ( !empty( $line_items ) ) {
+                foreach ( $line_items as $item ) {
                     // Get proper product name using product_id
-                    $product_name = $this->get_product_name_by_id( $item->product_id ?? 0 );
+                    $product_name = $this->get_product_name_by_id( $item->get_product_id() );
                     if ( empty( $product_name ) ) {
-                        $product_name = $item->name ?? '未知產品';
+                        $product_name = $item->get_name() ?: '未知產品';
                     }
                     
-                    $quantity = intval( $item->quantity );
-                    $item_total = floatval( $item->total );
+                    $quantity = intval( $item->get_quantity() );
+                    $item_total = floatval( $item->get_total() );
                     
                     // Collect sales data
                     if ( !isset( $products_by_sales[$product_name] ) ) {
@@ -1505,7 +1432,7 @@ class CSR_WooCommerce_Interface {
                     
                     // Add monthly data to product records
                     if ( $start_date && $end_date ) {
-                        $order_date = new DateTime( $order->date_created );
+                        $order_date = new DateTime( $order_data->date_created );
                         $order_month = $order_date->format( 'Y-m' );
                         
                         // Sales monthly data
@@ -1832,5 +1759,105 @@ class CSR_WooCommerce_Interface {
         }
         
         return '';
+    }
+    
+    /**
+     * Get orders using native HPOS SQL query (faster than REST API)
+     * Returns orders in format compatible with REST API response
+     */
+    private function get_orders_via_hpos( $start_date = null, $end_date = null ) {
+        global $wpdb;
+        
+        // HPOS table names
+        $orders_table = $wpdb->prefix . 'wc_orders';
+        $order_addresses_table = $wpdb->prefix . 'wc_order_addresses';
+        $order_operational_data_table = $wpdb->prefix . 'wc_order_operational_data';
+        
+        // Build WHERE clause for date filtering
+        $where_conditions = array();
+        $where_conditions[] = "o.type = 'shop_order'";
+        $where_conditions[] = "o.status IN ('wc-completed', 'wc-processing', 'wc-on-hold')";
+        
+        $prepare_values = array();
+        
+        if ( $start_date ) {
+            $where_conditions[] = "o.date_created_gmt >= %s";
+            $prepare_values[] = $start_date . ' 00:00:00';
+        }
+        
+        if ( $end_date ) {
+            $where_conditions[] = "o.date_created_gmt <= %s";
+            $prepare_values[] = $end_date . ' 23:59:59';
+        }
+        
+        $where_clause = 'WHERE ' . implode( ' AND ', $where_conditions );
+        
+        // Build the main query
+        $sql = "SELECT 
+                    o.id,
+                    o.customer_id,
+                    o.total_amount as total,
+                    o.date_created_gmt as date_created,
+                    o.status,
+                    o.payment_method,
+                    o.payment_method_title,
+                    ood.created_via,
+                    -- Billing address
+                    ba.city as billing_city,
+                    ba.address_1 as billing_address_1,
+                    ba.address_2 as billing_address_2,
+                    -- Shipping address
+                    sa.city as shipping_city,
+                    sa.address_1 as shipping_address_1,
+                    sa.address_2 as shipping_address_2
+                FROM {$orders_table} o
+                LEFT JOIN {$order_addresses_table} ba ON o.id = ba.order_id AND ba.address_type = 'billing'
+                LEFT JOIN {$order_addresses_table} sa ON o.id = sa.order_id AND sa.address_type = 'shipping'
+                LEFT JOIN {$order_operational_data_table} ood ON o.id = ood.order_id
+                {$where_clause}
+                ORDER BY o.date_created_gmt DESC";
+        
+        // Prepare and execute the query
+        if ( !empty( $prepare_values ) ) {
+            $results = $wpdb->get_results( $wpdb->prepare( $sql, $prepare_values ) );
+        } else {
+            $results = $wpdb->get_results( $sql );
+        }
+        
+        if ( $wpdb->last_error ) {
+            throw new Exception( 'Database error: ' . $wpdb->last_error );
+        }
+        
+        // Convert to format compatible with REST API response
+        $orders = array();
+        foreach ( $results as $row ) {
+            $order = new stdClass();
+            
+            // Basic order info
+            $order->id = intval( $row->id );
+            $order->customer_id = intval( $row->customer_id );
+            $order->total = floatval( $row->total );
+            $order->date_created = $row->date_created;
+            $order->status = $row->status;
+            $order->payment_method = $row->payment_method ?: '';
+            $order->payment_method_title = $row->payment_method_title ?: 'Unknown';
+            $order->created_via = $row->created_via ?: 'unknown';
+            
+            // Billing address object (simplified)
+            $order->billing = new stdClass();
+            $order->billing->city = $row->billing_city ?: '';
+            $order->billing->address_1 = $row->billing_address_1 ?: '';
+            $order->billing->address_2 = $row->billing_address_2 ?: '';
+            
+            // Shipping address object (simplified)
+            $order->shipping = new stdClass();
+            $order->shipping->city = $row->shipping_city ?: '';
+            $order->shipping->address_1 = $row->shipping_address_1 ?: '';
+            $order->shipping->address_2 = $row->shipping_address_2 ?: '';
+            
+            $orders[] = $order;
+        }
+        
+        return $orders;
     }
 }
