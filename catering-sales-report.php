@@ -133,84 +133,28 @@ class CateringSalesReport {
      * Add admin menu
      */
     public function add_admin_menu() {
-        // Check if the catering booking plugin is active and has created the meal-schedule menu
-        if ( $this->is_catering_booking_plugin_active() ) {
-            // Add as submenu under existing meal-schedule menu
-            add_submenu_page(
-                'meal-schedule',                                    // Parent slug from catering booking plugin
-                __( '廬太套報表', 'catering-sales-report' ),              // Page title
-                __( '廬太套報表', 'catering-sales-report' ),              // Menu title
-                'manage_catering',                                  // Capability (same as booking plugin)
-                'catering-sales-report',                           // Menu slug
-                array( $this, 'dashboard_page' ),                  // Callback
-                20                                                 // Position (after other submenus)
-            );
+        add_menu_page(
+            __( '廬太太報表', 'catering-sales-report' ),
+            __( '廬太太報表', 'catering-sales-report' ),
+            'manage_catering',
+            'catering-sales-report',
+            array( $this, 'dashboard_page' ),
+            'dashicons-chart-line',
+            3
+        );
             
-            // Settings submenu under meal-schedule
-            add_submenu_page(
-                'meal-schedule',
-                __( 'Sales Report Settings', 'catering-sales-report' ),
-                __( 'Report Settings', 'catering-sales-report' ),
-                'manage_catering',
-                'csr-settings',
-                array( $this, 'settings_page' )
-            );
-        } else {
-            // Fallback: Create standalone menu if catering booking plugin is not active
-            add_menu_page(
-                __( '廬太套報表', 'catering-sales-report' ),
-                __( '廬太套報表', 'catering-sales-report' ),
-                'manage_catering',
-                'catering-sales-report',
-                array( $this, 'dashboard_page' ),
-                'dashicons-chart-line',
-                30
-            );
-            
-            // Settings submenu for standalone mode
-            add_submenu_page(
-                'catering-sales-report',
-                __( 'API Settings', 'catering-sales-report' ),
-                __( 'Settings', 'catering-sales-report' ),
-                'manage_catering',
-                'csr-settings',
-                array( $this, 'settings_page' )
-            );
-        }
+        // Settings submenu for standalone mode
+        add_submenu_page(
+            'catering-sales-report',
+            __( 'API Settings', 'catering-sales-report' ),
+            __( 'Settings', 'catering-sales-report' ),
+            'manage_catering',
+            'csr-settings',
+            array( $this, 'settings_page' )
+        );
     }
     
-    /**
-     * Check if catering booking and scheduling plugin is active
-     */
-    private function is_catering_booking_plugin_active() {
-        // Check multiple ways to detect if the catering booking plugin is active
-        
-        // Method 1: Check if the main admin menu function exists
-        if ( function_exists( 'meal_schedule_add_admin_menu' ) ) {
-            return true;
-        }
-        
-        // Method 2: Check if the render function exists
-        if ( function_exists( 'catering_render_meal_schedule_page' ) ) {
-            return true;
-        }
-        
-        // Method 3: Check if plugin directory exists
-        $plugin_dir = WP_PLUGIN_DIR . '/catering-booking-and-scheduling/catering-booking-and-scheduling.php';
-        if ( file_exists( $plugin_dir ) && is_plugin_active( 'catering-booking-and-scheduling/catering-booking-and-scheduling.php' ) ) {
-            return true;
-        }
-        
-        // Method 4: Check if admin page hook exists (when in admin)
-        if ( is_admin() ) {
-            global $admin_page_hooks;
-            if ( isset( $admin_page_hooks['meal-schedule'] ) ) {
-                return true;
-            }
-        }
-        
-        return false;
-    }
+
     
     /**
      * Settings page callback
