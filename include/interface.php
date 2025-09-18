@@ -100,7 +100,7 @@ class CSR_WooCommerce_Interface {
         
         // NEW: Get orders using native HPOS SQL query
         $orders = $this->get_orders_via_hpos( $start_date, $end_date );
-
+        
         // Get top selling products
         $top_products = $this->make_request( 'reports/top_sellers', $start_date, $end_date );
         if ( is_wp_error( $top_products ) ) {
@@ -168,15 +168,13 @@ class CSR_WooCommerce_Interface {
     private function get_payment_data( $start_date = null, $end_date = null ) {
   
         $orders = $this->get_orders_via_hpos( $start_date, $end_date );
-        
+
         // Get monthly trends for last 12 months
         $monthly_trends = $this->get_payment_monthly_trends();
         
         return array(
             'orders' => $orders,
-            'monthly_trends' => $monthly_trends,
-            'payment_method_usage' => $this->analyze_payment_methods( $orders ),
-            'payment_summary' => $this->calculate_payment_summary( $orders )
+            'monthly_trends' => $monthly_trends
         );
     }
     
@@ -655,27 +653,6 @@ class CSR_WooCommerce_Interface {
         
         return $params;
     }
-    
-    private function analyze_payment_methods( $orders ) {
-        $payment_methods = array();
-        
-        foreach ( $orders as $order ) {
-            $method = $order->payment_method_title ?? 'Unknown';
-            
-            if ( !isset( $payment_methods[$method] ) ) {
-                $payment_methods[$method] = array(
-                    'method' => $method,
-                    'count' => 0,
-                    'total' => 0
-                );
-            }
-            
-            $payment_methods[$method]['count']++;
-            $payment_methods[$method]['total'] += floatval( $order->total );
-        }
-        
-        return array_values( $payment_methods );
-    }
 
     /**
      * Get monthly comparison data (current month vs last month)
@@ -938,7 +915,21 @@ class CSR_WooCommerce_Interface {
             $payment_methods = array();
             if ( !is_wp_error( $orders ) ) {
                 foreach ( $orders as $order ) {
-                    $method = ( empty( $order->payment_method_title ) ) ? '其他' : $order->payment_method_title;
+
+                    if ( !empty( $order->payment_method_title ) ) {
+                        switch ( $order->payment_method_title ) {
+                            case 'Credit / Debit Card':
+                                $method = '其他';
+                                break;
+                            case 'Unknown':
+                                $method = '其他';
+                                break;
+                            default:
+                                $method = $order->payment_method_title;
+                        }
+                    } else {
+                        $method = '其他';
+                    }
                     
                     if ( !isset( $payment_methods[$method] ) ) {
                         $payment_methods[$method] = 0;
@@ -955,45 +946,6 @@ class CSR_WooCommerce_Interface {
         }
 
         return $monthly_trends;
-    }
-    
-    /**
-     * Calculate payment summary statistics
-     */
-    private function calculate_payment_summary( $orders ) {
-        $total_orders = count( $orders );
-        $total_amount = 0;
-        $payment_methods = array();
-        
-        foreach ( $orders as $order ) {
-            $total_amount += floatval( $order->total );
-            $method = ( empty( $order->payment_method_title ) ) ? '其他' : $order->payment_method_title;
-
-            if ( !isset( $payment_methods[$method] ) ) {
-                $payment_methods[$method] = array(
-                    'count' => 0,
-                    'total' => 0
-                );
-            }
-            
-            $payment_methods[$method]['count']++;
-            $payment_methods[$method]['total'] += floatval( $order->total );
-        }
-        
-        // Calculate percentages
-        foreach ( $payment_methods as $method => $data ) {
-            $payment_methods[$method]['percentage'] = $total_orders > 0 ? 
-                round( ( $data['count'] / $total_orders ) * 100, 2 ) : 0;
-            $payment_methods[$method]['amount_percentage'] = $total_amount > 0 ? 
-                round( ( $data['total'] / $total_amount ) * 100, 2 ) : 0;
-        }
-
-        return array(
-            'total_orders' => $total_orders,
-            'total_amount' => $total_amount,
-            'payment_methods' => $payment_methods,
-            'average_order_value' => $total_orders > 0 ? $total_amount / $total_orders : 0
-        );
     }
     
     /**
@@ -1816,15 +1768,17 @@ class CSR_WooCommerce_Interface {
                 LEFT JOIN {$order_operational_data_table} ood ON o.id = ood.order_id
                 {$where_clause}
                 ORDER BY o.date_created_gmt DESC";
-        
+        set_transient( 'debug',  $wpdb->prepare( $sql, $prepare_values ) , 30 );
         // Prepare and execute the query
         if ( !empty( $prepare_values ) ) {
             $results = $wpdb->get_results( $wpdb->prepare( $sql, $prepare_values ) );
         } else {
+            
             $results = $wpdb->get_results( $sql );
         }
         
         if ( $wpdb->last_error ) {
+            
             throw new Exception( 'Database error: ' . $wpdb->last_error );
         }
         

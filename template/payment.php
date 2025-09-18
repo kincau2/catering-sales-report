@@ -254,10 +254,18 @@ function updatePaymentTypeChart(orders) {
     
     // Process payment method data
     var paymentMethods = {};
-    
+    var method;
     orders.forEach(function(order) {
-        var method = order.payment_method_title || '其他';
-        
+
+        switch (order.payment_method_title) {
+            case 'Credit / Debit Card':
+            case 'Unknown':
+                method = '其他';
+                break;
+            default:
+                method = order.payment_method_title || '其他';
+        }
+
         if (!paymentMethods[method]) {
             paymentMethods[method] = {
                 count: 0,
@@ -481,9 +489,8 @@ function getColorForLabel(label, index) {
     // Define specific colors for known payment methods
     var colorMapping = {
         // Payment methods
-        'yedpay': '#3498db',     // Blue
+        'Yedpay': '#3498db',     // Blue
         '銀行轉帳': '#2ecc71',     // Green
-        'Credit / Debit Card': '#f39c12',       // Orange
         '現金': '#9b59b6',         // Purple
         '支票': '#1abc9c',         // Turquoise
         '其他': '#34495e',         // Dark Blue Grey
