@@ -92,20 +92,12 @@ class CSR_WooCommerce_Interface {
      * Get overview data
      */
     private function get_overview_data( $start_date = null, $end_date = null ) {
-        // Get sales report
-        $sales_report = $this->make_request( 'reports/sales', $start_date, $end_date );
-        if ( is_wp_error( $sales_report ) ) {
-            throw new Exception( $sales_report->get_error_message() );
-        }
-        
-        // NEW: Get orders using native HPOS SQL query
+        // NEW: Get sales report using HPOS SQL query instead of REST API
+        $sales_report = $this->get_sales_report_via_hpos( $start_date, $end_date );
+
         $orders = $this->get_orders_via_hpos( $start_date, $end_date );
         
-        // Get top selling products
-        $top_products = $this->make_request( 'reports/top_sellers', $start_date, $end_date );
-        if ( is_wp_error( $top_products ) ) {
-            throw new Exception( $top_products->get_error_message() );
-        }
+        $top_products = $this->get_top_sellers_via_hpos( $start_date, $end_date );
         
         return array(
             'sales_report' => $sales_report,
@@ -145,16 +137,10 @@ class CSR_WooCommerce_Interface {
         // Fetch double date range (comparison period + current period)
         $comparison_start = $comparison_start->format('Y-m-d');
         $comparison_end = $comparison_end->format('Y-m-d');
-        // Get sales data for the extended period
-        $sales_data_current = $this->make_request( 'reports/sales', $start_date, $end_date );
-        if ( is_wp_error( $sales_data_current ) ) {
-            throw new Exception( $sales_data_current->get_error_message() );
-        }
-        $sales_data_comparison = $this->make_request( 'reports/sales', $comparison_start, $comparison_end );
-
-        if ( is_wp_error( $sales_data_comparison ) ) {
-            throw new Exception( $sales_data_current->get_error_message() );
-        }
+        
+        // NEW: Get sales data using HPOS SQL query instead of REST API
+        $sales_data_current = $this->get_sales_report_via_hpos( $start_date, $end_date );
+        $sales_data_comparison = $this->get_sales_report_via_hpos( $comparison_start, $comparison_end );
         
         return array(
             'period_comparison' => $this->get_detailed_period_comparison( $sales_data_current, $sales_data_comparison ),
@@ -232,6 +218,31 @@ class CSR_WooCommerce_Interface {
             'monthly_trends' => $monthly_trends,
             'channel_usage' => $this->analyze_sales_channels( $orders ),
             'channel_summary' => $this->calculate_channel_summary( $orders )
+        );
+    }
+
+    /**
+     * Get promotion analysis data - OPTIMIZED using wc_order_coupon_lookup table
+     */
+    private function get_promotion_data( $start_date = null, $end_date = null ) {
+        // Get coupons from WooCommerce
+        $coupon_params = array( 'per_page' => 100 );
+        $coupons = $this->make_request_with_params( 'coupons', $coupon_params );
+        
+        if ( is_wp_error( $coupons ) ) {
+            throw new Exception( $coupons->get_error_message() );
+        }
+        
+        // NEW: Process coupon usage data using wc_order_coupon_lookup table (much faster)
+        $coupon_usage_data = $this->process_coupon_usage_via_lookup( $coupons, $start_date, $end_date );
+        
+        // NEW: Generate promotion sales trend using get_sales_report_via_hpos() for consistency
+        $sales_trend = $this->generate_promotion_sales_trend_via_hpos( $start_date, $end_date );
+        
+        set_transient( 'debug', $sales_trend , 30 ); // For debugging
+        return array(
+            'coupons' => $coupon_usage_data,
+            'sales_trend' => $sales_trend
         );
     }
     
@@ -548,33 +559,6 @@ class CSR_WooCommerce_Interface {
     }
     
     /**
-     * Get promotion analysis data
-     */
-    private function get_promotion_data( $start_date = null, $end_date = null ) {
-        // Get coupons from WooCommerce
-        $coupon_params = array( 'per_page' => 100 );
-        $coupons = $this->make_request_with_params( 'coupons', $coupon_params );
-        
-        if ( is_wp_error( $coupons ) ) {
-            throw new Exception( $coupons->get_error_message() );
-        }
-        
-        $orders = $this->get_orders_via_hpos( $start_date, $end_date );
-        
-        // Process coupon usage data
-        $coupon_usage_data = $this->process_coupon_usage( $coupons, $orders );
-        
-        // Generate promotion sales trend data
-        $sales_trend = $this->generate_promotion_sales_trend( $orders, $start_date, $end_date );
-        
-        return array(
-            'coupons' => $coupon_usage_data,
-            'summary' => $this->calculate_promotion_summary( $coupon_usage_data ),
-            'sales_trend' => $sales_trend
-        );
-    }
-    
-    /**
      * Make API request to WooCommerce
      */
     private function make_request( $endpoint, $start_date = null, $end_date = null ) {
@@ -636,23 +620,6 @@ class CSR_WooCommerce_Interface {
             return new WP_Error( 'api_error', $e->getMessage() );
         }
     }
-    
-    /**
-     * Build date parameters for API requests
-     */
-    private function build_date_params( $start_date = null, $end_date = null ) {
-        $params = array();
-        
-        if ( $start_date ) {
-            $params['date_min'] = date( 'Y-m-d', strtotime( $start_date ) );
-        }
-        
-        if ( $end_date ) {
-            $params['date_max'] = date( 'Y-m-d', strtotime( $end_date ) );
-        }
-        
-        return $params;
-    }
 
     /**
      * Get monthly comparison data (current month vs last month)
@@ -666,12 +633,12 @@ class CSR_WooCommerce_Interface {
         $last_month_start = date( 'Y-m-01', strtotime( '-1 month' ) );
         $last_month_end = date( 'Y-m-t', strtotime( '-1 month' ) );
         
-        // Get current month sales data using reports/sales endpoint
-        $current_month_sales_data = $this->make_request( 'reports/sales', $current_month_start, $current_month_end );
-
-        // Get last month sales data using reports/sales endpoint
-        $last_month_sales_data = $this->make_request( 'reports/sales', $last_month_start, $last_month_end );
+        // NEW: Get current month sales data using HPOS SQL query instead of REST API
+        $current_month_sales_data = $this->get_sales_report_via_hpos( $current_month_start, $current_month_end );
         
+        // NEW: Get last month sales data using HPOS SQL query instead of REST API
+        $last_month_sales_data = $this->get_sales_report_via_hpos( $last_month_start, $last_month_end );
+
         // Extract sales and customer data directly from API response
         $current_month_sales = 0;
         $current_month_customers = 0;
@@ -706,11 +673,11 @@ class CSR_WooCommerce_Interface {
             $start_date = date( 'Y-m-d', strtotime( "-{$days} days" ) );
             $end_date = date( 'Y-m-d' );
             
-            // Use reports/sales endpoint instead of fetching orders
-            $sales_data = $this->make_request( 'reports/sales', $start_date, $end_date );
-            
+            // NEW: Use HPOS SQL query instead of REST API
+            $sales_data = $this->get_sales_report_via_hpos( $start_date, $end_date );
+
             $total_sales = 0;
-            if ( !is_wp_error( $sales_data ) && isset($sales_data[0]) ) {
+            if ( isset($sales_data[0]) ) {
                 $total_sales = floatval( $sales_data[0]->total_sales );
             }
             
@@ -860,12 +827,9 @@ class CSR_WooCommerce_Interface {
         $start_date = $year . '-01-01';
         $end_date = $year . '-12-31';
         
-        $sales_data = $this->make_request( 'reports/sales', $start_date, $end_date );
+        // NEW: Use HPOS SQL query instead of REST API
+        $sales_data = $this->get_sales_report_via_hpos( $start_date, $end_date );
 
-        if ( is_wp_error( $sales_data ) ) {
-            return $monthly_sales;
-        }
-        
         // Check if we have sales data
         if ( !isset($sales_data[0]->totals) ) {
             return $monthly_sales;
@@ -1559,141 +1523,6 @@ class CSR_WooCommerce_Interface {
         
         return $color_map;
     }
-    
-    /**
-     * Process coupon usage data from orders
-     */
-    private function process_coupon_usage( $coupons, $orders ) {
-        $coupon_usage = array();
-        
-        // Initialize coupon data
-        foreach ( $coupons as $coupon ) {
-            $coupon_usage[$coupon->code] = array(
-                'id' => $coupon->id,
-                'code' => $coupon->code,
-                'description' => $coupon->description ?? '',
-                'discount_type' => $coupon->discount_type ?? '',
-                'amount' => $coupon->amount ?? 0,
-                'date_created' => $coupon->date_created ?? '',
-                'date_expires' => $coupon->date_expires ?? '',
-                'usage_count' => 0,
-                'total_revenue' => 0,
-                'total_discount' => 0
-            );
-        }
-        
-        // Process orders to count coupon usage
-        foreach ( $orders as $order ) {
-            if ( isset( $order->coupon_lines ) && is_array( $order->coupon_lines ) ) {
-                $order_total = floatval( $order->total );
-                
-                foreach ( $order->coupon_lines as $coupon_line ) {
-                    $coupon_code = $coupon_line->code ?? '';
-                    
-                    if ( isset( $coupon_usage[$coupon_code] ) ) {
-                        $coupon_usage[$coupon_code]['usage_count']++;
-                        $coupon_usage[$coupon_code]['total_revenue'] += $order_total;
-                        $coupon_usage[$coupon_code]['total_discount'] += abs( floatval( $coupon_line->discount ?? 0 ) );
-                    }
-                }
-            }
-        }
-        
-        return array_values( $coupon_usage );
-    }
-    
-    /**
-     * Calculate promotion summary statistics
-     */
-    private function calculate_promotion_summary( $coupon_data ) {
-        $total_promotions = count( $coupon_data );
-        $active_promotions = 0;
-        $total_usage = 0;
-        $total_revenue = 0;
-        $total_discount = 0;
-        $current_date = new DateTime();
-        
-        foreach ( $coupon_data as $coupon ) {
-            $total_usage += intval( $coupon['usage_count'] );
-            $total_revenue += floatval( $coupon['total_revenue'] );
-            $total_discount += floatval( $coupon['total_discount'] );
-            
-            // Check if coupon is currently active
-            $expiry_date = $coupon['date_expires'] ? new DateTime( $coupon['date_expires'] ) : null;
-            if ( !$expiry_date || $expiry_date > $current_date ) {
-                $active_promotions++;
-            }
-        }
-        
-        return array(
-            'total_promotions' => $total_promotions,
-            'active_promotions' => $active_promotions,
-            'total_usage' => $total_usage,
-            'total_revenue' => $total_revenue,
-            'total_discount' => $total_discount,
-            'average_discount_per_use' => $total_usage > 0 ? $total_discount / $total_usage : 0
-        );
-    }
-    
-    /**
-     * Generate promotion sales trend data grouped by month
-     * Shows sales data for orders that used coupons
-     */
-    private function generate_promotion_sales_trend( $orders, $start_date = null, $end_date = null ) {
-        $monthly_data = array();
-        
-        // Determine date range
-        if ( !$start_date ) {
-            $start_date = date( 'Y-m-d', strtotime( '-12 months' ) );
-        }
-        if ( !$end_date ) {
-            $end_date = date( 'Y-m-d' );
-        }
-        
-        // Initialize monthly data structure
-        $start = new DateTime( $start_date );
-        $end = new DateTime( $end_date );
-        $interval = new DateInterval( 'P1M' );
-        $period = new DatePeriod( $start, $interval, $end );
-        
-        foreach ( $period as $month ) {
-            $month_key = $month->format( 'Y-m' );
-            $monthly_data[ $month_key ] = array(
-                'month' => $month_key,
-                'month_label' => $month->format( 'M Y' ),
-                'total_sales' => 0,
-                'order_count' => 0,
-                'coupon_sales' => 0,
-                'coupon_orders' => 0
-            );
-        }
-        
-        // Process orders to calculate monthly promotion sales
-        foreach ( $orders as $order ) {
-            $order_date = date( 'Y-m', strtotime( $order->date_created ) );
-            
-            // Skip if order date is outside our range
-            if ( !isset( $monthly_data[ $order_date ] ) ) {
-                continue;
-            }
-            
-            $order_total = floatval( $order->total );
-            $has_coupon = !empty( $order->coupon_lines );
-            
-            // Add to total sales
-            $monthly_data[ $order_date ]['total_sales'] += $order_total;
-            $monthly_data[ $order_date ]['order_count']++;
-            
-            // Add to coupon sales if order used coupons
-            if ( $has_coupon ) {
-                $monthly_data[ $order_date ]['coupon_sales'] += $order_total;
-                $monthly_data[ $order_date ]['coupon_orders']++;
-            }
-        }
-        
-        // Return as indexed array for easier JavaScript processing
-        return array_values( $monthly_data );
-    }
 
     /**
      * Get product name by product ID using WooCommerce core functions
@@ -1768,7 +1597,7 @@ class CSR_WooCommerce_Interface {
                 LEFT JOIN {$order_operational_data_table} ood ON o.id = ood.order_id
                 {$where_clause}
                 ORDER BY o.date_created_gmt DESC";
-        set_transient( 'debug',  $wpdb->prepare( $sql, $prepare_values ) , 30 );
+        
         // Prepare and execute the query
         if ( !empty( $prepare_values ) ) {
             $results = $wpdb->get_results( $wpdb->prepare( $sql, $prepare_values ) );
@@ -1813,5 +1642,422 @@ class CSR_WooCommerce_Interface {
         }
         
         return $orders;
+    }
+    
+    /**
+     * Get sales report data using HPOS - replacement for reports/sales endpoint
+     * Maintains exact WooCommerce API response structure with 60-day aggregation rule
+     */
+    private function get_sales_report_via_hpos( $start_date = null, $end_date = null ) {
+        global $wpdb;
+        
+        // Set default date range if not provided
+        if ( !$start_date ) {
+            $start_date = date( 'Y-m-d', strtotime( '-30 days' ) );
+        }
+        if ( !$end_date ) {
+            $end_date = date( 'Y-m-d' );
+        }
+        
+        // Calculate period length for aggregation decision
+        $start_date_obj = new DateTime( $start_date );
+        $end_date_obj = new DateTime( $end_date );
+        $period_days = $end_date_obj->diff( $start_date_obj )->days + 1;
+        
+        // HPOS table name
+        $orders_table = $wpdb->prefix . 'wc_orders';
+        
+        // Base query for total aggregations
+        $base_sql = $wpdb->prepare(
+            "SELECT 
+                COUNT(*) as total_orders,
+                COUNT(DISTINCT customer_id) as total_customers,
+                SUM(total_amount) as total_sales,
+                COUNT(DISTINCT DATE(date_created_gmt)) as sales_days
+             FROM {$orders_table}
+             WHERE type = 'shop_order'
+               AND status IN ('wc-completed', 'wc-processing', 'wc-on-hold')
+               AND date_created_gmt BETWEEN %s AND %s",
+            $start_date . ' 00:00:00',
+            $end_date . ' 23:59:59'
+        );
+        
+        $totals_result = $wpdb->get_row( $base_sql );
+        
+        // Build totals breakdown based on 60-day rule
+        $totals = new stdClass();
+        
+        if ( $period_days <= 60 ) {
+            // Daily aggregation for periods <= 60 days - ensure ALL dates are included
+            $daily_sql = $wpdb->prepare(
+                "SELECT 
+                    DATE(date_created_gmt) as sales_date,
+                    COUNT(*) as orders,
+                    COUNT(DISTINCT customer_id) as customers, 
+                    SUM(total_amount) as sales
+                 FROM {$orders_table}
+                 WHERE type = 'shop_order'
+                   AND status IN ('wc-completed', 'wc-processing', 'wc-on-hold')
+                   AND date_created_gmt BETWEEN %s AND %s
+                 GROUP BY DATE(date_created_gmt)
+                 ORDER BY sales_date",
+                $start_date . ' 00:00:00',
+                $end_date . ' 23:59:59'
+            );
+            
+            $daily_results = $wpdb->get_results( $daily_sql );
+            
+            // Convert to associative array for easy lookup
+            $daily_data = array();
+            foreach ( $daily_results as $daily ) {
+                $daily_data[ $daily->sales_date ] = array(
+                    'orders' => intval( $daily->orders ),
+                    'customers' => intval( $daily->customers ),
+                    'sales' => floatval( $daily->sales ),
+                );
+            }
+            
+            // Generate ALL dates in range, including zero-sales dates
+            $current_date = new DateTime( $start_date );
+            $end_date_obj = new DateTime( $end_date );
+            
+            while ( $current_date <= $end_date_obj ) {
+                $date_key = $current_date->format( 'Y-m-d' );
+                
+                if ( isset( $daily_data[ $date_key ] ) ) {
+                    // Use actual data
+                    $totals->$date_key = (object) $daily_data[ $date_key ];
+                } else {
+                    // Use zero data for dates with no sales
+                    $totals->$date_key = (object) array(
+                        'orders' => 0,
+                        'customers' => 0,
+                        'sales' => 0,
+                    );
+                }
+                
+                $current_date->modify( '+1 day' );
+            }
+        } else {
+            // Monthly aggregation for periods > 60 days - ensure ALL months are included
+            $monthly_sql = $wpdb->prepare(
+                "SELECT 
+                    DATE_FORMAT(date_created_gmt, '%%Y-%%m') as sales_month,
+                    COUNT(*) as orders,
+                    COUNT(DISTINCT customer_id) as customers,
+                    SUM(total_amount) as sales
+                 FROM {$orders_table}
+                 WHERE type = 'shop_order'
+                   AND status IN ('wc-completed', 'wc-processing', 'wc-on-hold')
+                   AND date_created_gmt BETWEEN %s AND %s
+                 GROUP BY DATE_FORMAT(date_created_gmt, '%%Y-%%m')
+                 ORDER BY sales_month",
+                $start_date . ' 00:00:00',
+                $end_date . ' 23:59:59'
+            );
+            
+            $monthly_results = $wpdb->get_results( $monthly_sql );
+            
+            // Convert to associative array for easy lookup
+            $monthly_data = array();
+            foreach ( $monthly_results as $monthly ) {
+                $monthly_data[ $monthly->sales_month ] = array(
+                    'orders' => intval( $monthly->orders ),
+                    'customers' => intval( $monthly->customers ),
+                    'sales' => floatval( $monthly->sales ),
+                );
+            }
+            
+            // Generate ALL months in range, including zero-sales months
+            $current_month = new DateTime( $start_date );
+            $current_month->modify( 'first day of this month' ); // Start from beginning of start month
+            $end_month = new DateTime( $end_date );
+            $end_month->modify( 'first day of this month' ); // End at beginning of end month
+            
+            while ( $current_month <= $end_month ) {
+                $month_key = $current_month->format( 'Y-m' );
+                
+                if ( isset( $monthly_data[ $month_key ] ) ) {
+                    // Use actual data
+                    $totals->$month_key = (object) $monthly_data[ $month_key ];
+                } else {
+                    // Use zero data for months with no sales
+                    $totals->$month_key = (object) array(
+                        'orders' => 0,
+                        'customers' => 0,
+                        'sales' => 0,
+                    );
+                }
+                
+                $current_month->modify( '+1 month' );
+            }
+        }
+        
+        // Build response matching WooCommerce API structure
+        $response = array(
+            (object) array(
+                'total_sales' => floatval( $totals_result->total_sales ?? 0 ),
+                'net_sales' => floatval( ( $totals_result->total_sales ?? 0 ) - ( $totals_result->total_tax ?? 0 ) ),
+                'average_sales' => $totals_result->sales_days > 0 ? 
+                    floatval( $totals_result->total_sales ) / intval( $totals_result->sales_days ) : 0,
+                'total_orders' => intval( $totals_result->total_orders ?? 0 ),
+                'total_items' => intval( $totals_result->total_orders ?? 0 ), // Approximate
+                'total_refunds' => 0, // Would need separate query for refunds
+                'total_discount' => 0, // Would need separate query for discounts
+                'totals_grouped_by' => $period_days <= 60 ? 'day' : 'month',
+                'totals' => $totals,
+                'total_customers' => intval( $totals_result->total_customers ?? 0 ),
+                'period' => $period_days
+            )
+        );
+        
+        return $response;
+    }
+    
+    /**
+     * Get top sellers data using HPOS - replacement for reports/top_sellers endpoint  
+     * Maintains exact WooCommerce API response structure
+     */
+    private function get_top_sellers_via_hpos( $start_date = null, $end_date = null, $limit = 10 ) {
+        global $wpdb;
+        
+        // Set default date range if not provided
+        if ( !$start_date ) {
+            $start_date = date( 'Y-m-d', strtotime( '-30 days' ) );
+        }
+        if ( !$end_date ) {
+            $end_date = date( 'Y-m-d' );
+        }
+        
+        // HPOS table names
+        $orders_table = $wpdb->prefix . 'wc_orders';
+        $order_items_table = $wpdb->prefix . 'woocommerce_order_items';
+        $order_itemmeta_table = $wpdb->prefix . 'woocommerce_order_itemmeta';
+        
+        // Get top selling products by quantity
+        $top_sellers_sql = $wpdb->prepare(
+            "SELECT 
+                oim_product.meta_value as product_id,
+                SUM(oim_qty.meta_value) as quantity,
+                p.post_title as name
+             FROM {$orders_table} o
+             INNER JOIN {$order_items_table} oi ON o.id = oi.order_id
+             INNER JOIN {$order_itemmeta_table} oim_product ON oi.order_item_id = oim_product.order_item_id 
+                 AND oim_product.meta_key = '_product_id'
+             INNER JOIN {$order_itemmeta_table} oim_qty ON oi.order_item_id = oim_qty.order_item_id 
+                 AND oim_qty.meta_key = '_qty'
+             LEFT JOIN {$wpdb->posts} p ON oim_product.meta_value = p.ID
+             WHERE o.type = 'shop_order'
+               AND o.status IN ('wc-completed', 'wc-processing', 'wc-on-hold')
+               AND o.date_created_gmt BETWEEN %s AND %s
+               AND oi.order_item_type = 'line_item'
+               AND oim_product.meta_value > 0
+             GROUP BY oim_product.meta_value, p.post_title
+             ORDER BY quantity DESC
+             LIMIT %d",
+            $start_date . ' 00:00:00',
+            $end_date . ' 23:59:59',
+            $limit
+        );
+        
+        $results = $wpdb->get_results( $top_sellers_sql );
+        
+        // Build response matching WooCommerce API structure
+        $top_sellers = array();
+        
+        foreach ( $results as $result ) {
+            $product_id = intval( $result->product_id );
+            $quantity = intval( $result->quantity );
+            $name = $result->name ?: '未知產品';
+            
+            $top_sellers[] = (object) array(
+                'product_id' => $product_id,
+                'quantity' => $quantity,
+                'name' => $name,
+                'slug' => sanitize_title( $name )
+            );
+        }
+        
+        return $top_sellers;
+    }
+    
+    /**
+     * Process coupon usage data using wc_order_coupon_lookup table - OPTIMIZED
+     * Much faster than looping through all orders
+     */
+    private function process_coupon_usage_via_lookup( $coupons, $start_date = null, $end_date = null ) {
+        global $wpdb;
+        
+        // Set default date range if not provided
+        if ( !$start_date ) {
+            $start_date = date( 'Y-m-d', strtotime( '-30 days' ) );
+        }
+        if ( !$end_date ) {
+            $end_date = date( 'Y-m-d' );
+        }
+        
+        $coupon_usage = array();
+        
+        // Initialize coupon data
+        foreach ( $coupons as $coupon ) {
+            $coupon_usage[$coupon->id] = array(
+                'id' => $coupon->id,
+                'code' => $coupon->code,
+                'description' => $coupon->description ?? '',
+                'discount_type' => $coupon->discount_type ?? '',
+                'amount' => $coupon->amount ?? 0,
+                'date_created' => $coupon->date_created ?? '',
+                'date_expires' => $coupon->date_expires ?? '',
+                'usage_count' => 0,
+                'total_revenue' => 0,
+                'total_discount' => 0
+            );
+        }
+        
+        // HPOS table names
+        $orders_table = $wpdb->prefix . 'wc_orders';
+        $coupon_lookup_table = $wpdb->prefix . 'wc_order_coupon_lookup';
+        
+        // Get coupon usage data from lookup table - much faster than scanning all orders
+        $coupon_usage_sql = $wpdb->prepare(
+            "SELECT 
+                ocl.coupon_id,
+                p.post_title as coupon_code,
+                ocl.discount_amount,
+                o.total_amount as order_total,
+                COUNT(*) as usage_count,
+                SUM(o.total_amount) as total_revenue,
+                SUM(ocl.discount_amount) as total_discount
+             FROM {$coupon_lookup_table} ocl
+             INNER JOIN {$orders_table} o ON ocl.order_id = o.id
+             INNER JOIN {$wpdb->posts} p ON ocl.coupon_id = p.ID
+             WHERE o.type = 'shop_order'
+               AND o.status IN ('wc-completed', 'wc-processing', 'wc-on-hold')
+               AND o.date_created_gmt BETWEEN %s AND %s
+               AND p.post_type = 'shop_coupon'
+             GROUP BY ocl.coupon_id, p.post_title
+             ORDER BY usage_count DESC",
+            $start_date . ' 00:00:00',
+            $end_date . ' 23:59:59'
+        );
+        
+        $usage_results = $wpdb->get_results( $coupon_usage_sql );
+        
+        // Update coupon usage data with actual usage statistics
+        foreach ( $usage_results as $usage ) {
+            $coupon_id = $usage->coupon_id;
+
+            if ( isset( $coupon_usage[$coupon_id] ) ) {
+                $coupon_usage[$coupon_id]['usage_count'] = intval( $usage->usage_count );
+                $coupon_usage[$coupon_id]['total_revenue'] = floatval( $usage->total_revenue );
+                $coupon_usage[$coupon_id]['total_discount'] = floatval( $usage->total_discount );
+            }
+        }
+        
+        return array_values( $coupon_usage );
+    }
+    
+    /**
+     * Generate promotion sales trend using HPOS sales report - follows 60-day aggregation rule
+     * Much more efficient and consistent with other trend data
+     */
+    private function generate_promotion_sales_trend_via_hpos( $start_date = null, $end_date = null ) {
+        global $wpdb;
+        
+        // Set default date range if not provided
+        if ( !$start_date ) {
+            $start_date = date( 'Y-m-d', strtotime( '-12 months' ) );
+        }
+        if ( !$end_date ) {
+            $end_date = date( 'Y-m-d' );
+        }
+        
+        // Get overall sales report using our optimized HPOS method
+        $sales_report = $this->get_sales_report_via_hpos( $start_date, $end_date );
+        $sales_totals = $sales_report[0]->totals ?? new stdClass();
+        
+        // Calculate period length for aggregation decision (same as sales report)
+        $start_date_obj = new DateTime( $start_date );
+        $end_date_obj = new DateTime( $end_date );
+        $period_days = $end_date_obj->diff( $start_date_obj )->days + 1;
+        
+        // HPOS table names
+        $orders_table = $wpdb->prefix . 'wc_orders';
+        $coupon_lookup_table = $wpdb->prefix . 'wc_order_coupon_lookup';
+        
+        // Get coupon sales data following same aggregation rules
+        if ( $period_days <= 60 ) {
+            // Daily aggregation for periods <= 60 days
+            $coupon_sales_sql = $wpdb->prepare(
+                "SELECT 
+                    DATE(o.date_created_gmt) as sales_date,
+                    COUNT(DISTINCT ocl.order_id) as coupon_orders,
+                    SUM(o.total_amount) as coupon_sales
+                 FROM {$coupon_lookup_table} ocl
+                 INNER JOIN {$orders_table} o ON ocl.order_id = o.id
+                 WHERE o.type = 'shop_order'
+                   AND o.status IN ('wc-completed', 'wc-processing', 'wc-on-hold')
+                   AND o.date_created_gmt BETWEEN %s AND %s
+                 GROUP BY DATE(o.date_created_gmt)
+                 ORDER BY sales_date",
+                $start_date . ' 00:00:00',
+                $end_date . ' 23:59:59'
+            );
+        } else {
+            // Monthly aggregation for periods > 60 days
+            $coupon_sales_sql = $wpdb->prepare(
+                "SELECT 
+                    DATE_FORMAT(o.date_created_gmt, '%%Y-%%m') as sales_month,
+                    COUNT(DISTINCT ocl.order_id) as coupon_orders,
+                    SUM(o.total_amount) as coupon_sales
+                 FROM {$coupon_lookup_table} ocl
+                 INNER JOIN {$orders_table} o ON ocl.order_id = o.id
+                 WHERE o.type = 'shop_order'
+                   AND o.status IN ('wc-completed', 'wc-processing', 'wc-on-hold')
+                   AND o.date_created_gmt BETWEEN %s AND %s
+                 GROUP BY DATE_FORMAT(o.date_created_gmt, '%%Y-%%m')
+                 ORDER BY sales_month",
+                $start_date . ' 00:00:00',
+                $end_date . ' 23:59:59'
+            );
+        }
+        
+        $coupon_sales_results = $wpdb->get_results( $coupon_sales_sql );
+        
+        // Convert to lookup array for easy merging
+        $coupon_sales_data = array();
+        foreach ( $coupon_sales_results as $coupon_sales ) {
+            $date_key = $period_days <= 60 ? $coupon_sales->sales_date : $coupon_sales->sales_month;
+            $coupon_sales_data[$date_key] = array(
+                'coupon_orders' => intval( $coupon_sales->coupon_orders ),
+                'coupon_sales' => floatval( $coupon_sales->coupon_sales )
+            );
+        }
+        
+        // Build final trend data by merging sales report totals with coupon data
+        $trend_data = array();
+        
+        foreach ( $sales_totals as $date_key => $sales_data ) {
+            $trend_entry = array(
+                'period' => $date_key,
+                'period_label' => $period_days <= 60 ? 
+                    date( 'M j', strtotime( $date_key ) ) : 
+                    date( 'M Y', strtotime( $date_key . '-01' ) ),
+                'total_sales' => floatval( $sales_data->sales ?? 0 ),
+                'total_orders' => intval( $sales_data->orders ?? 0 ),
+                'coupon_sales' => 0,
+                'coupon_orders' => 0
+            );
+            
+            // Add coupon data if exists for this period
+            if ( isset( $coupon_sales_data[$date_key] ) ) {
+                $trend_entry['coupon_sales'] = $coupon_sales_data[$date_key]['coupon_sales'];
+                $trend_entry['coupon_orders'] = $coupon_sales_data[$date_key]['coupon_orders'];
+            }
+            
+            $trend_data[] = $trend_entry;
+        }
+        
+        return $trend_data;
     }
 }

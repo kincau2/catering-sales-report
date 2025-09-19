@@ -750,7 +750,7 @@ function updatePromotionSalesTrendChart(salesTrend) {
     var totalSalesData = [];
     
     salesTrend.forEach(function(monthData) {
-        labels.push(monthData.month_label);
+        labels.push(monthData.period_label);
         couponSalesData.push(parseFloat(monthData.coupon_sales) || 0);
         totalSalesData.push(parseFloat(monthData.total_sales) || 0);
     });
@@ -761,7 +761,7 @@ function updatePromotionSalesTrendChart(salesTrend) {
             {
                 label: '<?php _e( '促銷訂單銷售額', 'catering-sales-report' ); ?>',
                 data: couponSalesData,
-                borderColor: '#D2691E',
+                borderColor: '#cf6316ff',
                 backgroundColor: 'rgba(210, 105, 30, 0.1)',
                 tension: 0.1,
                 fill: true
@@ -769,8 +769,8 @@ function updatePromotionSalesTrendChart(salesTrend) {
             {
                 label: '<?php _e( '總銷售額', 'catering-sales-report' ); ?>',
                 data: totalSalesData,
-                borderColor: '#666',
-                backgroundColor: 'rgba(102, 102, 102, 0.1)',
+                borderColor: '#2ad083ff',
+                backgroundColor: 'rgba(64, 216, 43, 0.1)',
                 tension: 0.1,
                 fill: false
             }

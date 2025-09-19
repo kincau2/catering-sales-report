@@ -102,15 +102,15 @@ if ( ! defined( 'ABSPATH' ) ) exit;
     }
     
     .csr-legend-solid {
-        background: #D2691E;
+        background: #0073aa;
     }
     
     .csr-legend-dashed {
-        background: #FF8C00;
+        background: #e08646ff;
         background-image: repeating-linear-gradient(
             to right,
-            #FF8C00,
-            #FF8C00 4px,
+            #e08646ff,
+            #e08646ff 4px,
             transparent 4px,
             transparent 8px
         );
@@ -347,24 +347,24 @@ function updatePeriodComparisonChart(data) {
             {
                 label: '<?php _e( "當前期間", "catering-sales-report" ); ?>',
                 data: comparisonData.current_period || [],
-                borderColor: '#D2691E',
+                borderColor: '#0073aa',
                 backgroundColor: 'rgba(210, 105, 30, 0.1)',
                 tension: 0.4,
                 fill: false,
-                pointBackgroundColor: '#D2691E',
-                pointBorderColor: '#fff',
+                pointBackgroundColor: '#0073aa',
+                pointBorderColor: '#0073aa',
                 pointBorderWidth: 2,
                 borderWidth: 3
             },
             {
                 label: '<?php _e( "對比期間", "catering-sales-report" ); ?>',
                 data: comparisonData.comparison_period || [],
-                borderColor: '#FF8C00',
+                borderColor: '#e08646ff',
                 backgroundColor: 'rgba(255, 140, 0, 0.1)',
                 tension: 0.4,
                 fill: false,
-                pointBackgroundColor: '#FF8C00',
-                pointBorderColor: '#fff',
+                pointBackgroundColor: '#e08646ff',
+                pointBorderColor: '#e08646ff',
                 pointBorderWidth: 2,
                 borderWidth: 3,
                 borderDash: [10, 5]
