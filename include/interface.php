@@ -559,42 +559,6 @@ class CSR_WooCommerce_Interface {
     }
     
     /**
-     * Make API request to WooCommerce
-     */
-    private function make_request( $endpoint, $start_date = null, $end_date = null ) {
-        try {
-            // Build query parameters for date filtering
-            $query = array();
-            if ( $start_date ) {
-                $query['date_min'] = $start_date;
-            }
-            if ( $end_date ) {
-                $query['date_max'] = $end_date;
-            }
-
-            // Initialize WooCommerce client
-            $woocommerce = new Client(
-                $this->store_url,
-                $this->consumer_key,
-                $this->consumer_secret,
-                [
-                    'version' => $this->api_version,
-                ]
-            );
-            
-            // Make the API request
-            $response = $woocommerce->get( $endpoint, $query );
-
-            // The WooCommerce client returns the data directly, not a WP response object
-            return $response;
-            
-        } catch ( Exception $e ) {
-            // Convert exceptions to WP_Error for consistency
-            return new WP_Error( 'api_error', $e->getMessage() );
-        }
-    }
-    
-    /**
      * Make API request with custom parameters
      */
     private function make_request_with_params( $endpoint, $params = array() ) {
@@ -789,32 +753,6 @@ class CSR_WooCommerce_Interface {
         }
         
         return $years_data;
-    }
-    
-    /**
-     * Process daily sales from orders
-     */
-    private function process_daily_sales( $orders, $start_date, $end_date ) {
-        $daily_sales = array();
-        
-        // Initialize all days with zero
-        $current_date = clone $start_date;
-        while ( $current_date <= $end_date ) {
-            $daily_sales[$current_date->format('Y-m-d')] = 0;
-            $current_date->modify( '+1 day' );
-        }
-        
-        // Aggregate sales by day
-        foreach ( $orders as $order ) {
-            $order_date = new DateTime( $order->date_created );
-            $date_key = $order_date->format('Y-m-d');
-            
-            if ( isset( $daily_sales[$date_key] ) ) {
-                $daily_sales[$date_key] += floatval( $order->total );
-            }
-        }
-        
-        return $daily_sales;
     }
     
     /**
@@ -1453,29 +1391,6 @@ class CSR_WooCommerce_Interface {
             'sales_trends' => $monthly_sales_trends,
             'quantity_trends' => $monthly_quantity_trends,
         );
-    }
-    
-    /**
-     * Get consistent color for a product based on its name
-     * Uses a more robust hashing algorithm to ensure better color distribution
-     */
-    private function get_product_color( $product_name ) {
-        // High contrast color palette with 21 maximally distinct colors
-        $colors = array(
-            '#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', 
-            '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4', 
-            '#469990', '#dcbeff', '#9A6324', '#fffac8', '#800000', 
-            '#aaffc3', '#808000', '#ffd8b1', '#000075', '#a9a9a9', 
-            '#000000'
-        );
-        
-        // Use MD5 for better hash distribution than CRC32
-        $hash = md5( $product_name );
-        // Convert first 8 characters of hash to integer for better distribution
-        $hash_int = hexdec( substr( $hash, 0, 8 ) );
-        $color_index = $hash_int % count( $colors );
-        
-        return $colors[$color_index];
     }
 
     /**
