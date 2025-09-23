@@ -130,7 +130,7 @@ class CSR_Init {
         }
         
         // Check user permissions
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( 'manage_catering' ) ) {
             wp_die( 'Insufficient permissions' );
         }
         
@@ -160,7 +160,7 @@ class CSR_Init {
         }
         
         // Check user permissions
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( 'manage_catering' ) ) {
             wp_die( 'Insufficient permissions' );
         }
         
@@ -190,7 +190,7 @@ class CSR_Init {
         }
         
         // Check user permissions
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( 'manage_catering' ) ) {
             wp_die( 'Insufficient permissions' );
         }
         
@@ -241,7 +241,7 @@ class CSR_Init {
         }
         
         // Check user permissions
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( 'manage_catering' ) ) {
             wp_die( 'Insufficient permissions' );
         }
         
