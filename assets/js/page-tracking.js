@@ -19,12 +19,12 @@ jQuery(document).ready(function($) {
         }, function(response) {
             // Optional: Log tracking result for debugging
             if (console && console.log) {
-                console.log('CSR Page View Tracking:', response);
+                // console.log('CSR Page View Tracking:', response);
             }
         }).fail(function() {
             // Fail silently to not affect user experience
             if (console && console.log) {
-                console.log('CSR Page View Tracking: Failed to track view');
+                // console.log('CSR Page View Tracking: Failed to track view');
             }
         });
     }

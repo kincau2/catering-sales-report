@@ -872,8 +872,7 @@ function updateTopProductsChart(products) {
 function formatCurrency(amount) {
     return new Intl.NumberFormat('en-US', {
         style: 'currency',
-        currency: 'HKD',
-        maximumFractionDigits: 0
+        currency: 'HKD'
     }).format(amount);
 }
 

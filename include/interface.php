@@ -83,6 +83,9 @@ class CSR_WooCommerce_Interface {
             case 'promotion':
                 return $this->get_promotion_data( $start_date, $end_date );
             
+            case 'export':
+                return $this->get_export_data( $start_date, $end_date );
+            
             default:
                 throw new Exception( __( 'Invalid report type', 'catering-sales-report' ) );
         }
@@ -386,14 +389,14 @@ class CSR_WooCommerce_Interface {
             $order_date = $order->date_created_gmt;
             
             if ( isset( $monthly_data[ $month ] ) ) {
-                // Track active users (customers who made purchases)
-                $monthly_data[ $month ]['active_users'][ $customer_id ] = true;
-                
-                // Track total orders and sales
+                // Track total orders and sales (but not active users - that's login-based now)
                 $monthly_data[ $month ]['total_orders']++;
                 $monthly_data[ $month ]['total_sales'] += $order_total;
                 
                 // Track customer spending per month
+                if ( !isset( $customer_monthly_spending[ $month ] ) ) {
+                    $customer_monthly_spending[ $month ] = array();
+                }
                 if ( !isset( $customer_monthly_spending[ $month ][ $customer_id ] ) ) {
                     $customer_monthly_spending[ $month ][ $customer_id ] = 0;
                 }
@@ -444,19 +447,35 @@ class CSR_WooCommerce_Interface {
             $data['repeat_customers_90d'] = count( $repeat_customers );
         }
         
+        // Step 5.5: Get login-based active users from tracking table
+        $login_table = $wpdb->prefix . 'csr_user_logins';
+        foreach ( $monthly_data as $month => &$data ) {
+            // Get active users who logged in during this month
+            $active_users_sql = $wpdb->prepare(
+                "SELECT COUNT(DISTINCT user_id) as active_count
+                 FROM {$login_table}
+                 WHERE login_month = %s
+                   AND activity_count > 0",
+                $month
+            );
+            set_transient( 'debug', $active_users_sql , 30 ); // For debugging
+            $active_result = $wpdb->get_var( $active_users_sql );
+            $data['active_users'] = intval( $active_result );
+        }
+        
         // Step 6: Calculate final metrics for each month
         foreach ( $monthly_data as $month => &$data ) {
-            // Convert active users array to count
-            $active_user_count = count( $data['active_users'] );
-            $data['active_users'] = $active_user_count;
+            // Active users is now already set from login tracking
+            $active_user_count = $data['active_users'];
             
-            // Calculate average spending per customer
-            $data['avg_spending_per_customer'] = $active_user_count > 0 ? 
-                round( $data['total_sales'] / $active_user_count ,0) : 0;
+            // Calculate average spending per customer (based on purchasing customers, not login-based active users)
+            $purchasing_customers = count( $customer_monthly_spending[ $month ] ?? array() );
+            $data['avg_spending_per_customer'] = $purchasing_customers > 0 ? 
+                round( $data['total_sales'] / $purchasing_customers, 0) : 0;
             
-            // Calculate repeat purchase rate
-            $data['repeat_purchase_rate'] = $active_user_count > 0 ? 
-                round( ( $data['repeat_customers_90d'] / $active_user_count ) * 100, 2 ) : 0;
+            // Calculate repeat purchase rate (based on purchasing customers)
+            $data['repeat_purchase_rate'] = $purchasing_customers > 0 ? 
+                round( ( $data['repeat_customers_90d'] / $purchasing_customers ) * 100, 2 ) : 0;
         }
         
         // Step 7: Calculate cumulative total users for bar chart
@@ -1974,5 +1993,206 @@ class CSR_WooCommerce_Interface {
         }
         
         return $trend_data;
+    }
+    
+    /**
+     * Get export data - placeholder for export page
+     */
+    private function get_export_data( $start_date = null, $end_date = null ) {
+        // Return basic stats for the export page
+        return array(
+            'total_customers' => $this->get_total_customers_count(),
+            'customers_with_orders' => $this->get_customers_with_orders_count(),
+            'date_range' => array(
+                'start' => $start_date,
+                'end' => $end_date
+            )
+        );
+    }
+    
+    /**
+     * Get total customers count
+     */
+    private function get_total_customers_count() {
+        global $wpdb;
+        
+        $count = $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$wpdb->users} 
+             WHERE EXISTS (
+                SELECT 1 FROM {$wpdb->usermeta} 
+                WHERE user_id = {$wpdb->users}.ID 
+                AND meta_key = '{$wpdb->prefix}capabilities' 
+                AND meta_value LIKE '%customer%'
+             )"
+        );
+        
+        return intval( $count );
+    }
+    
+    /**
+     * Get customers with orders count
+     */
+    private function get_customers_with_orders_count() {
+        global $wpdb;
+        
+        $orders_table = $wpdb->prefix . 'wc_orders';
+        
+        $count = $wpdb->get_var(
+            "SELECT COUNT(DISTINCT customer_id) FROM {$orders_table} 
+             WHERE customer_id > 0 
+             AND type = 'shop_order' 
+             AND status IN ('wc-completed', 'wc-processing', 'wc-on-hold')"
+        );
+        
+        return intval( $count );
+    }
+    
+    /**
+     * Export customers data as CSV
+     */
+    public function export_customers_csv() {
+        global $wpdb;
+        
+        // Get all customers with their order data
+        $customers_data = $this->get_customers_export_data();
+        
+        // Create CSV content
+        $csv_output = '';
+        
+        // Add BOM for proper UTF-8 encoding in Excel
+        $csv_output .= "\xEF\xBB\xBF";
+        
+        // CSV Headers
+        $headers = array(
+            '客戶電郵',
+            '客戶姓名',
+            '客戶電話',
+            '是否曾下訂單',
+            '過往訂單號碼',
+            '總消費金額'
+        );
+        
+        $csv_output .= implode(',', array_map( array( $this, 'csv_escape' ), $headers ) ) . "\n";
+        
+        // Add customer data
+        foreach ( $customers_data as $customer ) {
+            $row = array(
+                $customer['email'],
+                $customer['name'],
+                $customer['phone'],
+                $customer['has_orders'] ? '是' : '否',
+                $customer['order_numbers'],
+                'HK$' . number_format( $customer['total_spent'], 2 )
+            );
+            
+            $csv_output .= implode(',', array_map( array( $this, 'csv_escape' ), $row ) ) . "\n";
+        }
+        
+        return $csv_output;
+    }
+    
+    /**
+     * Get customers export data with all required fields
+     */
+    private function get_customers_export_data() {
+        global $wpdb;
+        
+        $orders_table = $wpdb->prefix . 'wc_orders';
+        $order_addresses_table = $wpdb->prefix . 'wc_order_addresses';
+        
+        // Get all customers (users with customer role)
+        $customers = $wpdb->get_results(
+            "SELECT u.ID, u.user_email, u.display_name
+             FROM {$wpdb->users} u
+             INNER JOIN {$wpdb->usermeta} um ON u.ID = um.user_id
+             WHERE um.meta_key = '{$wpdb->prefix}capabilities'
+             AND um.meta_value LIKE '%customer%'
+             ORDER BY u.user_email ASC"
+        );
+        
+        $export_data = array();
+        
+        foreach ( $customers as $customer ) {
+            // Get customer meta data
+            $first_name = get_user_meta( $customer->ID, 'first_name', true );
+            $last_name = get_user_meta( $customer->ID, 'last_name', true );
+            $shipping_phone = get_user_meta( $customer->ID, 'shipping_phone', true );
+            
+            // Build full name
+            $full_name = trim( $last_name . ' ' . $first_name );
+            if ( empty( $full_name ) ) {
+                $full_name = $customer->display_name;
+            }
+            
+            // Get customer's order information using HPOS
+            $orders_query = $wpdb->prepare(
+                "SELECT o.id, o.total_amount 
+                 FROM {$orders_table} o
+                 WHERE o.customer_id = %d 
+                 AND o.type = 'shop_order'
+                 AND o.status IN ('wc-completed', 'wc-processing', 'wc-on-hold')
+                 ORDER BY o.date_created_gmt DESC",
+                $customer->ID
+            );
+            
+            $customer_orders = $wpdb->get_results( $orders_query );
+            
+            $has_orders = !empty( $customer_orders );
+            $total_spent = 0;
+            $order_numbers = array();
+            
+            if ( $has_orders ) {
+                foreach ( $customer_orders as $order_data ) {
+                    $total_spent += floatval( $order_data->total_amount );
+                    
+                    // Get custom order number using WooCommerce order object
+                    $order = wc_get_order( $order_data->id );
+                    if ( $order ) {
+                        $custom_order_number = $order->get_meta( '_seq_order_number', true );
+                        if ( !empty( $custom_order_number ) ) {
+                            $order_numbers[] = $custom_order_number;
+                        } else {
+                            // Fallback to order ID if no custom number
+                            $order_numbers[] = '#' . $order_data->id;
+                        }
+                    }
+                }
+            }
+            
+            $export_data[] = array(
+                'email' => $customer->user_email,
+                'name' => $full_name,
+                'phone' => $shipping_phone,
+                'has_orders' => $has_orders,
+                'order_numbers' => implode( ', ', $order_numbers ),
+                'total_spent' => $total_spent
+            );
+        }
+        
+        return $export_data;
+    }
+    
+    /**
+     * Escape CSV field
+     */
+    private function csv_escape( $field ) {
+        // Handle null or empty values
+        if ( $field === null || $field === '' ) {
+            return '""';
+        }
+        
+        // Convert to string
+        $field = (string) $field;
+        
+        // If field contains comma, quote, or newline, wrap in quotes and escape quotes
+        if ( strpos( $field, ',' ) !== false || 
+             strpos( $field, '"' ) !== false || 
+             strpos( $field, "\n" ) !== false || 
+             strpos( $field, "\r" ) !== false ) {
+            
+            $field = '"' . str_replace( '"', '""', $field ) . '"';
+        }
+        
+        return $field;
     }
 }

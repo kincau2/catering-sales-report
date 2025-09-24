@@ -252,7 +252,8 @@ $report_pages = isset( $report_pages ) ? $report_pages : CSR_Init::get_report_pa
         'product-sales' => '產品銷售',
         'promotion' => '促銷活動',
         'region' => '地區銷售',
-        'membership' => '會員分析'
+        'membership' => '會員分析',
+        'export' => '導出資料'
     );
     
     foreach ( $simplified_menu as $page_key => $title ): 

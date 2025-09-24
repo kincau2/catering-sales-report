@@ -50,11 +50,15 @@ class CSR_Init {
         add_action( 'wp_ajax_csr_get_report_content', array( __CLASS__, 'ajax_get_report_content' ) );
         add_action( 'wp_ajax_csr_get_quick_stats', array( __CLASS__, 'ajax_get_quick_stats' ) );
         add_action( 'wp_ajax_csr_test_connection', array( __CLASS__, 'ajax_test_connection' ) );
+        add_action( 'wp_ajax_csr_export_customers', array( __CLASS__, 'ajax_export_customers' ) );
         
         // Frontend hooks for page view tracking
         add_action( 'wp_enqueue_scripts', array( __CLASS__, 'frontend_enqueue_scripts' ) );
         add_action( 'wp_ajax_csr_track_page_view', array( __CLASS__, 'ajax_track_page_view' ) );
         add_action( 'wp_ajax_nopriv_csr_track_page_view', array( __CLASS__, 'ajax_track_page_view' ) );
+        
+        // User login tracking for monthly active users
+        add_action( 'init', array( __CLASS__, 'track_user_monthly_activity' ));
     }
     
     /**
@@ -178,6 +182,42 @@ class CSR_Init {
                 'message' => $e->getMessage()
             ));
         }
+    }
+    
+    /**
+     * AJAX handler for exporting customers CSV
+     */
+    public static function ajax_export_customers() {
+        // Verify nonce
+        if ( ! wp_verify_nonce( $_POST['nonce'], 'csr_ajax_nonce' ) ) {
+            wp_die( 'Security check failed' );
+        }
+        
+        // Check user permissions
+        if ( ! current_user_can( 'manage_catering' ) ) {
+            wp_die( 'Insufficient permissions' );
+        }
+        
+        try {
+            $api = new CSR_WooCommerce_Interface();
+            $csv_data = $api->export_customers_csv();
+            
+            // Set headers for file download
+            header( 'Content-Type: text/csv; charset=utf-8' );
+            header( 'Content-Disposition: attachment; filename="customers_export_' . date('Y-m-d_H-i-s') . '.csv"' );
+            header( 'Pragma: no-cache' );
+            header( 'Expires: 0' );
+            
+            // Output CSV data
+            echo $csv_data;
+            
+        } catch ( Exception $e ) {
+            wp_send_json_error( array(
+                'message' => $e->getMessage()
+            ));
+        }
+        
+        wp_die(); // This is important to terminate properly
     }
     
     /**
@@ -386,6 +426,11 @@ class CSR_Init {
                 'title' => __( 'Promotion Analysis', 'catering-sales-report' ),
                 'icon' => 'dashicons-tag',
                 'description' => __( 'Promotional campaign effectiveness', 'catering-sales-report' )
+            ),
+            'export' => array(
+                'title' => __( 'Export Data', 'catering-sales-report' ),
+                'icon' => 'dashicons-download',
+                'description' => __( 'Export customer and sales data', 'catering-sales-report' )
             )
         );
     }
@@ -430,11 +475,11 @@ class CSR_Init {
     public static function create_database_tables() {
         global $wpdb;
         
-        $table_name = $wpdb->prefix . 'csr_product_views';
-        
         $charset_collate = $wpdb->get_charset_collate();
         
-        $sql = "CREATE TABLE $table_name (
+        // Product views table
+        $product_views_table = $wpdb->prefix . 'csr_product_views';
+        $product_views_sql = "CREATE TABLE $product_views_table (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
             product_id bigint(20) NOT NULL,
             view_count int(11) NOT NULL DEFAULT 1,
@@ -445,8 +490,27 @@ class CSR_Init {
             KEY view_date (view_date)
         ) $charset_collate;";
         
+        // User logins table for tracking monthly active users
+        $user_logins_table = $wpdb->prefix . 'csr_user_logins';
+        $user_logins_sql = "CREATE TABLE $user_logins_table (
+            id mediumint(9) NOT NULL AUTO_INCREMENT,
+            user_id bigint(20) NOT NULL,
+            login_month varchar(7) NOT NULL,
+            first_activity_date datetime NOT NULL,
+            last_activity_date datetime NOT NULL,
+            activity_count int(11) DEFAULT 1,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY user_month (user_id, login_month),
+            KEY login_month (login_month),
+            KEY user_id (user_id)
+        ) $charset_collate;";
+        
         require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
-        dbDelta( $sql );
+        
+        // Create tables using maybe_create_table
+        maybe_create_table( $product_views_table, $product_views_sql );
+        maybe_create_table( $user_logins_table, $user_logins_sql );
     }
     
     /**
@@ -548,6 +612,42 @@ class CSR_Init {
                     'view_date' => $today
                 ),
                 array( '%d', '%d', '%s' )
+            );
+        }
+    }
+    
+    /**
+     * Track user monthly activity on login
+     */
+    public static function track_user_monthly_activity() {
+        global $wpdb;
+
+        $user_id = get_current_user_id();
+        if ( ! $user_id ) {
+            return; // Not logged in
+        }
+        $current_month = date( 'Y-m' );
+        $table_name = $wpdb->prefix . 'csr_user_logins';
+        
+        // Check if user already has activity record for this month
+        $existing = $wpdb->get_var( $wpdb->prepare(
+            "SELECT id FROM $table_name WHERE user_id = %d AND login_month = %s LIMIT 1",
+            $user_id,
+            $current_month
+        ));
+        
+        if ( !$existing ) {
+            // Insert new monthly activity record
+            $wpdb->insert(
+                $table_name,
+                array(
+                    'user_id' => $user_id,
+                    'login_month' => $current_month,
+                    'first_activity_date' => current_time( 'mysql' ),
+                    'last_activity_date' => current_time( 'mysql' ),
+                    'activity_count' => 1
+                ),
+                array( '%d', '%s', '%s', '%s', '%d' )
             );
         }
     }
