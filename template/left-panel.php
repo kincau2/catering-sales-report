@@ -54,7 +54,7 @@ $report_pages = isset( $report_pages ) ? $report_pages : CSR_Init::get_report_pa
 
 .csr-nav-menu {
     list-style: none;
-    margin: 0;
+    margin: 0 0 49.2px 0;
     padding: 0;
     background: #fff;
 }
@@ -159,7 +159,8 @@ $report_pages = isset( $report_pages ) ? $report_pages : CSR_Init::get_report_pa
 
 /* API status indicator - Updated colors and fixed positioning */
 .csr-api-status {
-    position: absolute;
+    position: fixed;
+    width: 241px;
     bottom: 0;
     left: 0;
     right: 0;

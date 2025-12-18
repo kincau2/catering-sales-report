@@ -134,9 +134,9 @@ class CateringSalesReport {
      */
     public function add_admin_menu() {
         add_menu_page(
-            __( '廬太太報表', 'catering-sales-report' ),
-            __( '廬太太報表', 'catering-sales-report' ),
-            'manage_catering',
+            __( '盧太太報表', 'catering-sales-report' ),
+            __( '盧太太報表', 'catering-sales-report' ),
+            'view_catering_report',
             'catering-sales-report',
             array( $this, 'dashboard_page' ),
             'dashicons-chart-line',
@@ -148,7 +148,7 @@ class CateringSalesReport {
             'catering-sales-report',
             __( 'API Settings', 'catering-sales-report' ),
             __( 'Settings', 'catering-sales-report' ),
-            'manage_catering',
+            'view_catering_report',
             'csr-settings',
             array( $this, 'settings_page' )
         );

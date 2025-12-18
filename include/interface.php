@@ -368,7 +368,7 @@ class CSR_WooCommerce_Interface {
              LEFT JOIN {$order_addresses_table} oa ON o.id = oa.order_id 
                  AND oa.address_type = 'shipping'
              WHERE o.type = 'shop_order'
-               AND o.status IN ('wc-completed', 'wc-processing', 'wc-on-hold')
+               AND o.status IN ('wc-completed', 'wc-processing', 'wc-partially-paid')
                AND o.date_created_gmt BETWEEN %s AND %s
                AND o.customer_id > 0
              ORDER BY o.customer_id, o.date_created_gmt",
@@ -1491,7 +1491,7 @@ class CSR_WooCommerce_Interface {
         // Build WHERE clause for date filtering
         $where_conditions = array();
         $where_conditions[] = "o.type = 'shop_order'";
-        $where_conditions[] = "o.status IN ('wc-completed', 'wc-processing', 'wc-on-hold')";
+        $where_conditions[] = "o.status IN ('wc-completed', 'wc-processing', 'wc-partially-paid')";
         
         $prepare_values = array();
         
@@ -1610,7 +1610,7 @@ class CSR_WooCommerce_Interface {
                 COUNT(DISTINCT DATE(date_created_gmt)) as sales_days
              FROM {$orders_table}
              WHERE type = 'shop_order'
-               AND status IN ('wc-completed', 'wc-processing', 'wc-on-hold')
+               AND status IN ('wc-completed', 'wc-processing', 'wc-partially-paid')
                AND date_created_gmt BETWEEN %s AND %s",
             $start_date . ' 00:00:00',
             $end_date . ' 23:59:59'
@@ -1631,7 +1631,7 @@ class CSR_WooCommerce_Interface {
                     SUM(total_amount) as sales
                  FROM {$orders_table}
                  WHERE type = 'shop_order'
-                   AND status IN ('wc-completed', 'wc-processing', 'wc-on-hold')
+                   AND status IN ('wc-completed', 'wc-processing', 'wc-partially-paid')
                    AND date_created_gmt BETWEEN %s AND %s
                  GROUP BY DATE(date_created_gmt)
                  ORDER BY sales_date",
@@ -1682,7 +1682,7 @@ class CSR_WooCommerce_Interface {
                     SUM(total_amount) as sales
                  FROM {$orders_table}
                  WHERE type = 'shop_order'
-                   AND status IN ('wc-completed', 'wc-processing', 'wc-on-hold')
+                   AND status IN ('wc-completed', 'wc-processing', 'wc-partially-paid')
                    AND date_created_gmt BETWEEN %s AND %s
                  GROUP BY DATE_FORMAT(date_created_gmt, '%%Y-%%m')
                  ORDER BY sales_month",
@@ -1782,7 +1782,7 @@ class CSR_WooCommerce_Interface {
                  AND oim_qty.meta_key = '_qty'
              LEFT JOIN {$wpdb->posts} p ON oim_product.meta_value = p.ID
              WHERE o.type = 'shop_order'
-               AND o.status IN ('wc-completed', 'wc-processing', 'wc-on-hold')
+               AND o.status IN ('wc-completed', 'wc-processing', 'wc-partially-paid')
                AND o.date_created_gmt BETWEEN %s AND %s
                AND oi.order_item_type = 'line_item'
                AND oim_product.meta_value > 0
@@ -1866,7 +1866,7 @@ class CSR_WooCommerce_Interface {
              INNER JOIN {$orders_table} o ON ocl.order_id = o.id
              INNER JOIN {$wpdb->posts} p ON ocl.coupon_id = p.ID
              WHERE o.type = 'shop_order'
-               AND o.status IN ('wc-completed', 'wc-processing', 'wc-on-hold')
+               AND o.status IN ('wc-completed', 'wc-processing', 'wc-partially-paid')
                AND o.date_created_gmt BETWEEN %s AND %s
                AND p.post_type = 'shop_coupon'
              GROUP BY ocl.coupon_id, p.post_title
@@ -1930,7 +1930,7 @@ class CSR_WooCommerce_Interface {
                  FROM {$coupon_lookup_table} ocl
                  INNER JOIN {$orders_table} o ON ocl.order_id = o.id
                  WHERE o.type = 'shop_order'
-                   AND o.status IN ('wc-completed', 'wc-processing', 'wc-on-hold')
+                   AND o.status IN ('wc-completed', 'wc-processing', 'wc-partially-paid')
                    AND o.date_created_gmt BETWEEN %s AND %s
                  GROUP BY DATE(o.date_created_gmt)
                  ORDER BY sales_date",
@@ -1947,7 +1947,7 @@ class CSR_WooCommerce_Interface {
                  FROM {$coupon_lookup_table} ocl
                  INNER JOIN {$orders_table} o ON ocl.order_id = o.id
                  WHERE o.type = 'shop_order'
-                   AND o.status IN ('wc-completed', 'wc-processing', 'wc-on-hold')
+                   AND o.status IN ('wc-completed', 'wc-processing', 'wc-partially-paid')
                    AND o.date_created_gmt BETWEEN %s AND %s
                  GROUP BY DATE_FORMAT(o.date_created_gmt, '%%Y-%%m')
                  ORDER BY sales_month",
@@ -2041,7 +2041,7 @@ class CSR_WooCommerce_Interface {
             "SELECT COUNT(DISTINCT customer_id) FROM {$orders_table} 
              WHERE customer_id > 0 
              AND type = 'shop_order' 
-             AND status IN ('wc-completed', 'wc-processing', 'wc-on-hold')"
+             AND status IN ('wc-completed', 'wc-processing', 'wc-partially-paid')"
         );
         
         return intval( $count );
@@ -2130,7 +2130,7 @@ class CSR_WooCommerce_Interface {
                  FROM {$orders_table} o
                  WHERE o.customer_id = %d 
                  AND o.type = 'shop_order'
-                 AND o.status IN ('wc-completed', 'wc-processing', 'wc-on-hold')
+                 AND o.status IN ('wc-completed', 'wc-processing', 'wc-partially-paid')
                  ORDER BY o.date_created_gmt DESC",
                 $customer->ID
             );

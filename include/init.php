@@ -26,6 +26,9 @@ class CSR_Init {
         
         // Load text domain
         self::load_textdomain();
+
+        // Add custom capability to roles
+        self::add_view_catering_report_capability();
         
         // Create database tables
         self::create_database_tables();
@@ -134,7 +137,7 @@ class CSR_Init {
         }
         
         // Check user permissions
-        if ( ! current_user_can( 'manage_catering' ) ) {
+        if ( ! current_user_can( 'view_catering_report' ) ) {
             wp_die( 'Insufficient permissions' );
         }
         
@@ -164,7 +167,7 @@ class CSR_Init {
         }
         
         // Check user permissions
-        if ( ! current_user_can( 'manage_catering' ) ) {
+        if ( ! current_user_can( 'view_catering_report' ) ) {
             wp_die( 'Insufficient permissions' );
         }
         
@@ -194,7 +197,7 @@ class CSR_Init {
         }
         
         // Check user permissions
-        if ( ! current_user_can( 'manage_catering' ) ) {
+        if ( ! current_user_can( 'view_catering_report' ) ) {
             wp_die( 'Insufficient permissions' );
         }
         
@@ -230,7 +233,7 @@ class CSR_Init {
         }
         
         // Check user permissions
-        if ( ! current_user_can( 'manage_catering' ) ) {
+        if ( ! current_user_can( 'view_catering_report' ) ) {
             wp_die( 'Insufficient permissions' );
         }
         
@@ -281,7 +284,7 @@ class CSR_Init {
         }
         
         // Check user permissions
-        if ( ! current_user_can( 'manage_catering' ) ) {
+        if ( ! current_user_can( 'view_catering_report' ) ) {
             wp_die( 'Insufficient permissions' );
         }
         
@@ -687,4 +690,16 @@ class CSR_Init {
         
         return $products;
     }
+
+    public static function add_view_catering_report_capability() {
+        $roles = [ 'administrator', 'shop_manager'];
+        foreach ( $roles as $role_name ) {
+            $role = get_role( $role_name );
+            if ( $role && ! $role->has_cap( 'view_catering_report' ) ) {
+                $role->add_cap( 'view_catering_report' );
+            }
+        }
+    }
+
 }
+    
