@@ -248,6 +248,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                 <li><?php _e( '客戶電郵', 'catering-sales-report' ); ?></li>
                 <li><?php _e( '客戶姓名', 'catering-sales-report' ); ?></li>
                 <li><?php _e( '客戶電話', 'catering-sales-report' ); ?></li>
+                <li><?php _e( '註冊日期及時間', 'catering-sales-report' ); ?></li>
                 <li><?php _e( '是否曾下訂單', 'catering-sales-report' ); ?></li>
                 <li><?php _e( '過往訂單號碼', 'catering-sales-report' ); ?></li>
                 <li><?php _e( '總消費金額', 'catering-sales-report' ); ?></li>

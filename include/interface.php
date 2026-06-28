@@ -317,8 +317,8 @@ class CSR_WooCommerce_Interface {
              WHERE user_registered BETWEEN %s AND %s
              GROUP BY month
              ORDER BY month",
-            $start_date . ' 00:00:00',
-            $end_date . ' 23:59:59'
+            $this->local_date_to_utc( $start_date, '00:00:00' ),
+            $this->local_date_to_utc( $end_date, '23:59:59' )
         );
         
         $user_registrations = $wpdb->get_results( $user_registration_sql );
@@ -368,12 +368,13 @@ class CSR_WooCommerce_Interface {
              LEFT JOIN {$order_addresses_table} oa ON o.id = oa.order_id 
                  AND oa.address_type = 'shipping'
              WHERE o.type = 'shop_order'
+               AND o.parent_order_id = 0
                AND o.status IN ('wc-completed', 'wc-processing', 'wc-partially-paid')
                AND o.date_created_gmt BETWEEN %s AND %s
                AND o.customer_id > 0
              ORDER BY o.customer_id, o.date_created_gmt",
-            $start_date . ' 00:00:00',
-            $end_date . ' 23:59:59'
+            $this->local_date_to_utc( $start_date, '00:00:00' ),
+            $this->local_date_to_utc( $end_date, '23:59:59' )
         );
         
         $orders = $wpdb->get_results( $orders_sql );
@@ -1477,6 +1478,21 @@ class CSR_WooCommerce_Interface {
     }
     
     /**
+     * Convert a local (WordPress timezone) date to a UTC datetime string for SQL queries.
+     * Since HPOS stores date_created_gmt in UTC, all date range comparisons must use UTC.
+     *
+     * @param string $local_date Date in Y-m-d format (in WordPress local timezone)
+     * @param string $time       Time component: '00:00:00' for range start, '23:59:59' for range end
+     * @return string UTC datetime string in Y-m-d H:i:s format
+     */
+    private function local_date_to_utc( $local_date, $time = '00:00:00' ) {
+        $wp_timezone = wp_timezone();
+        $local_datetime = new DateTime( $local_date . ' ' . $time, $wp_timezone );
+        $local_datetime->setTimezone( new DateTimeZone( 'UTC' ) );
+        return $local_datetime->format( 'Y-m-d H:i:s' );
+    }
+
+    /**
      * Get orders using native HPOS SQL query (faster than REST API)
      * Returns orders in format compatible with REST API response
      */
@@ -1491,18 +1507,19 @@ class CSR_WooCommerce_Interface {
         // Build WHERE clause for date filtering
         $where_conditions = array();
         $where_conditions[] = "o.type = 'shop_order'";
+        $where_conditions[] = "o.parent_order_id = 0";
         $where_conditions[] = "o.status IN ('wc-completed', 'wc-processing', 'wc-partially-paid')";
         
         $prepare_values = array();
         
         if ( $start_date ) {
             $where_conditions[] = "o.date_created_gmt >= %s";
-            $prepare_values[] = $start_date . ' 00:00:00';
+            $prepare_values[] = $this->local_date_to_utc( $start_date, '00:00:00' );
         }
         
         if ( $end_date ) {
             $where_conditions[] = "o.date_created_gmt <= %s";
-            $prepare_values[] = $end_date . ' 23:59:59';
+            $prepare_values[] = $this->local_date_to_utc( $end_date, '23:59:59' );
         }
         
         $where_clause = 'WHERE ' . implode( ' AND ', $where_conditions );
@@ -1610,10 +1627,11 @@ class CSR_WooCommerce_Interface {
                 COUNT(DISTINCT DATE(date_created_gmt)) as sales_days
              FROM {$orders_table}
              WHERE type = 'shop_order'
+               AND parent_order_id = 0
                AND status IN ('wc-completed', 'wc-processing', 'wc-partially-paid')
                AND date_created_gmt BETWEEN %s AND %s",
-            $start_date . ' 00:00:00',
-            $end_date . ' 23:59:59'
+            $this->local_date_to_utc( $start_date, '00:00:00' ),
+            $this->local_date_to_utc( $end_date, '23:59:59' )
         );
         
         $totals_result = $wpdb->get_row( $base_sql );
@@ -1631,12 +1649,13 @@ class CSR_WooCommerce_Interface {
                     SUM(total_amount) as sales
                  FROM {$orders_table}
                  WHERE type = 'shop_order'
+                   AND parent_order_id = 0
                    AND status IN ('wc-completed', 'wc-processing', 'wc-partially-paid')
                    AND date_created_gmt BETWEEN %s AND %s
                  GROUP BY DATE(date_created_gmt)
                  ORDER BY sales_date",
-                $start_date . ' 00:00:00',
-                $end_date . ' 23:59:59'
+                $this->local_date_to_utc( $start_date, '00:00:00' ),
+                $this->local_date_to_utc( $end_date, '23:59:59' )
             );
             
             $daily_results = $wpdb->get_results( $daily_sql );
@@ -1682,12 +1701,13 @@ class CSR_WooCommerce_Interface {
                     SUM(total_amount) as sales
                  FROM {$orders_table}
                  WHERE type = 'shop_order'
+                   AND parent_order_id = 0
                    AND status IN ('wc-completed', 'wc-processing', 'wc-partially-paid')
                    AND date_created_gmt BETWEEN %s AND %s
                  GROUP BY DATE_FORMAT(date_created_gmt, '%%Y-%%m')
                  ORDER BY sales_month",
-                $start_date . ' 00:00:00',
-                $end_date . ' 23:59:59'
+                $this->local_date_to_utc( $start_date, '00:00:00' ),
+                $this->local_date_to_utc( $end_date, '23:59:59' )
             );
             
             $monthly_results = $wpdb->get_results( $monthly_sql );
@@ -1782,6 +1802,7 @@ class CSR_WooCommerce_Interface {
                  AND oim_qty.meta_key = '_qty'
              LEFT JOIN {$wpdb->posts} p ON oim_product.meta_value = p.ID
              WHERE o.type = 'shop_order'
+               AND o.parent_order_id = 0
                AND o.status IN ('wc-completed', 'wc-processing', 'wc-partially-paid')
                AND o.date_created_gmt BETWEEN %s AND %s
                AND oi.order_item_type = 'line_item'
@@ -1789,8 +1810,8 @@ class CSR_WooCommerce_Interface {
              GROUP BY oim_product.meta_value, p.post_title
              ORDER BY quantity DESC
              LIMIT %d",
-            $start_date . ' 00:00:00',
-            $end_date . ' 23:59:59',
+            $this->local_date_to_utc( $start_date, '00:00:00' ),
+            $this->local_date_to_utc( $end_date, '23:59:59' ),
             $limit
         );
         
@@ -1866,13 +1887,14 @@ class CSR_WooCommerce_Interface {
              INNER JOIN {$orders_table} o ON ocl.order_id = o.id
              INNER JOIN {$wpdb->posts} p ON ocl.coupon_id = p.ID
              WHERE o.type = 'shop_order'
+               AND o.parent_order_id = 0
                AND o.status IN ('wc-completed', 'wc-processing', 'wc-partially-paid')
                AND o.date_created_gmt BETWEEN %s AND %s
                AND p.post_type = 'shop_coupon'
              GROUP BY ocl.coupon_id, p.post_title
              ORDER BY usage_count DESC",
-            $start_date . ' 00:00:00',
-            $end_date . ' 23:59:59'
+            $this->local_date_to_utc( $start_date, '00:00:00' ),
+            $this->local_date_to_utc( $end_date, '23:59:59' )
         );
         
         $usage_results = $wpdb->get_results( $coupon_usage_sql );
@@ -1930,12 +1952,13 @@ class CSR_WooCommerce_Interface {
                  FROM {$coupon_lookup_table} ocl
                  INNER JOIN {$orders_table} o ON ocl.order_id = o.id
                  WHERE o.type = 'shop_order'
+                   AND o.parent_order_id = 0
                    AND o.status IN ('wc-completed', 'wc-processing', 'wc-partially-paid')
                    AND o.date_created_gmt BETWEEN %s AND %s
                  GROUP BY DATE(o.date_created_gmt)
                  ORDER BY sales_date",
-                $start_date . ' 00:00:00',
-                $end_date . ' 23:59:59'
+                $this->local_date_to_utc( $start_date, '00:00:00' ),
+                $this->local_date_to_utc( $end_date, '23:59:59' )
             );
         } else {
             // Monthly aggregation for periods > 60 days
@@ -1947,12 +1970,13 @@ class CSR_WooCommerce_Interface {
                  FROM {$coupon_lookup_table} ocl
                  INNER JOIN {$orders_table} o ON ocl.order_id = o.id
                  WHERE o.type = 'shop_order'
+                   AND o.parent_order_id = 0
                    AND o.status IN ('wc-completed', 'wc-processing', 'wc-partially-paid')
                    AND o.date_created_gmt BETWEEN %s AND %s
                  GROUP BY DATE_FORMAT(o.date_created_gmt, '%%Y-%%m')
                  ORDER BY sales_month",
-                $start_date . ' 00:00:00',
-                $end_date . ' 23:59:59'
+                $this->local_date_to_utc( $start_date, '00:00:00' ),
+                $this->local_date_to_utc( $end_date, '23:59:59' )
             );
         }
         
@@ -2041,6 +2065,7 @@ class CSR_WooCommerce_Interface {
             "SELECT COUNT(DISTINCT customer_id) FROM {$orders_table} 
              WHERE customer_id > 0 
              AND type = 'shop_order' 
+             AND parent_order_id = 0
              AND status IN ('wc-completed', 'wc-processing', 'wc-partially-paid')"
         );
         
@@ -2067,6 +2092,7 @@ class CSR_WooCommerce_Interface {
             '客戶電郵',
             '客戶姓名',
             '客戶電話',
+            '註冊日期及時間',
             '是否曾下訂單',
             '過往訂單號碼',
             '總消費金額'
@@ -2080,6 +2106,7 @@ class CSR_WooCommerce_Interface {
                 $customer['email'],
                 $customer['name'],
                 $customer['phone'],
+                $customer['registered_at'],
                 $customer['has_orders'] ? '是' : '否',
                 $customer['order_numbers'],
                 'HK$' . number_format( $customer['total_spent'], 2 )
@@ -2102,7 +2129,7 @@ class CSR_WooCommerce_Interface {
         
         // Get all customers (users with customer role)
         $customers = $wpdb->get_results(
-            "SELECT u.ID, u.user_email, u.display_name
+            "SELECT u.ID, u.user_email, u.display_name, u.user_registered
              FROM {$wpdb->users} u
              INNER JOIN {$wpdb->usermeta} um ON u.ID = um.user_id
              WHERE um.meta_key = '{$wpdb->prefix}capabilities'
@@ -2130,6 +2157,7 @@ class CSR_WooCommerce_Interface {
                  FROM {$orders_table} o
                  WHERE o.customer_id = %d 
                  AND o.type = 'shop_order'
+                 AND o.parent_order_id = 0
                  AND o.status IN ('wc-completed', 'wc-processing', 'wc-partially-paid')
                  ORDER BY o.date_created_gmt DESC",
                 $customer->ID
@@ -2163,6 +2191,7 @@ class CSR_WooCommerce_Interface {
                 'email' => $customer->user_email,
                 'name' => $full_name,
                 'phone' => $shipping_phone,
+                'registered_at' => $customer->user_registered,
                 'has_orders' => $has_orders,
                 'order_numbers' => implode( ', ', $order_numbers ),
                 'total_spent' => $total_spent
